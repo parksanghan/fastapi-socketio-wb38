@@ -4,8 +4,9 @@
 
   const socket = io();
 
-  socket.on('connect', () => {
+  socket.on('connect', data,() => {
     console.log(`connect ${socket.id}`);
+    console.log(data)
   });
 
   socket.on('disconnect', () => {
