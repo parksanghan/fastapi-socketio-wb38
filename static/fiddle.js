@@ -4,13 +4,14 @@
 
   const socket = io();
 
-  socket.on('connect', data,() => {
+  socket.on('connect', (data)=> {
     console.log(`connect ${socket.id}`);
-    console.log(data)
+    console.log(data);
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect',  () => {
     console.log(`disconnect ${socket.id}`);
+   
   });
 
   socket.on('hello', (a, b, c) => {

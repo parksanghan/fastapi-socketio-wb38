@@ -41,7 +41,7 @@ rooms = defaultdict(dict) # 방에 대한 모든 정보를 담음 rooms[room] �
 #rooms =  defaultdict(dict) # rooms[roomnname][sid] = name    candidate , ice  
 sid_2_rooms=  {}  # sid 를 통한 방 추적  sid_2_rooms[sid] = roomname
 
- 
+
 
 #==============================get============================================
 def get_room_list():  # 저장 된 방 리스트 반환
