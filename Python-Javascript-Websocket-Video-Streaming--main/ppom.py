@@ -30,7 +30,6 @@ sio.instrument(
  #WB38                           your_password
 
 combined_asgi_app = socketio.ASGIApp(sio, app)
- 
 manager = sio.manager
 #clientsocket = socket.socket(socket.AF_INET ,socket.SOCK_STREAM)
 #host = '127.0.0.1'
@@ -151,7 +150,7 @@ peer to peer 과정
 send offer   - > send answer 
 candidate   -> candidate    
 """
-@sio.on('offer')
+@sio.on('offer')    
 async def offer(sid,*args, **kwargs):
     offer  = args[0]  # 클라이언트에서 받아온  offer
     roomname   = args[1]  # 방이름 
@@ -207,6 +206,12 @@ socket.on("offeradd", async (offer) => {
 
 """
 
+
+""" icecandidate 
+offer 를 모두 가지고 그걸 받는 걸 모두 끝냈을 때 
+peer to peer 연결의 양쪽에서 icecandidate 라는 이벤트를 실행
+그 icecandidate 정보를 서로 주고 받아야함 근데 어떻게 특정해 시발
+"""
 sio.on('ice')
 def ice(sid, *args, **kwargs):
     ice  = args[0]
