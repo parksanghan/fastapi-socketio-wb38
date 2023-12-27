@@ -152,10 +152,9 @@ def disconnected(sid,*args, **kwargs):
 @sio.on('offer')
 async def offer(sid,*args, **kwargs):
     offer  = args[0]  # 클라이언트에서 받아온  offer
-    roomname   = args[1]  # 방이름  
-    rooms[roomname][sid] = offer
+    roomname   = args[1]  # 방이름 
     sio.emit('offer',get_all_offers(),to=sid) # offer를 발생시킨 sid 에게 현재 저장되어 있는 offer 리스트 반환 
-    save_rooms_info[roomname][sid] = offer # 자신을 제외하고 전달하기 위해 이벤트 후 저장
+    save_rooms_info(roomname=roomname,sid=sid,file=offer)# 자신을 제외하고 전달하기 위해 이벤트 후 저장
     sio.emit('offeradd',offer, room=roomname,skip_sid=sid) # 현재 접속된 방에서의 사람들은 해당 offer 만 받고 리스트에 추가
     #근데 이미 방에는 들어 있어서 sid 제외 해줘야 함
     
