@@ -162,7 +162,7 @@ async def offer(sid,*args, **kwargs):
  
 """ 클라이언트에서의 offer 처리 
  클라이언트 측 :
- 자신의 offer 생성
+ 자신의 offer 생성 
    const offer = await myPeerConnection.createOffer();
    // 로컬에 offer 설정
    myPeerConnection.setLocalDescription(offer);
@@ -179,7 +179,33 @@ async def offer(sid,*args, **kwargs):
     offeradd 이벤트 받을 시 저장된 리스트에 추가 후 프레임로드 
 
 """
+""" 클라이언트에서의 offer 이벤트 처리 로직 구성 예시
 
+socket.on("welcome", async () => {
+  const offer = await myPeerConnection.createOffer();
+  myPeerConnection.setLocalDescription(offer);
+  console.log("sent the offer");
+  socket.emit("offer", offer, roomName);
+});
+
+peerConnectionlist = []
+socket.on("offer", async (offerlist) => {
+  for (const offer of offerlist) {
+    const peerConnection = new RTCPeerConnection(configuration);
+    await peerConnection.setRemoteDescription(offer);
+    peerConnectionlist.push(peerConnection);
+  }
+});
+
+socket.on("offeradd", async (offer) => {
+  const peerConnection = new RTCPeerConnection(configuration);
+  peerConnection.setRemoteDescription(offer);
+  peerConnectionlist.push(peerConnection);  // 리스트에 Peer Connection 추가
+});
+
+ 
+
+"""
 
 sio.on('ice')
 def ice(sid, *args, **kwargs):
