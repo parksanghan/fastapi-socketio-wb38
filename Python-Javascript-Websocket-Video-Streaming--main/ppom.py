@@ -68,8 +68,8 @@ def get_room_sid(sid):   # sid를통한 방 추출
     else:
         return None
  
-def get_all_offers(): # sid 는 offer 와 매핑 되어 있음 room[roomname][sid] = offfer 
-    if len([inner_dict.values() for inner_dict in rooms.values()]):
+def get_all_offers(roomname): # sid 는 offer 와 매핑 되어 있음 room[roomname][sid] = offfer 
+    if len([inner_dict.values() for inner_dict in rooms.get(roomname)]):
         all_values = [value for inner_dict in rooms.values() for value in inner_dict.values()]  # 수정된 부분
         return all_values
     else:
@@ -134,52 +134,51 @@ def disconnected(sid,*args, **kwargs):
     if sid in sid_2_tutor: 
         sid_2_tutor.remove(sid)
     
-           
-    #if sid  in get_roommember_list(args[0]):
-    #    sio.leave_room(sid=sid , room=sid_2_rooms) # 나간사람 연결 강퇴
-    # socketio 에서는 연결  끊길시 해당 방 나가게 자동으로 처리 
+""" disconnect 로직 구성        
+    if sid  in get_roommember_list(args[0]):
+       sio.leave_room(sid=sid , room=sid_2_rooms) # 나간사람 연결 강퇴
+    socketio 에서는 연결  끊길시 해당 방 나가게 자동으로 처리 
 
-# rooms 내부 로직은 메모리 상에 올라가 있는데 클라이언트 하나가 접속되어 있는 것도 사실상 하나의 방임
-# 그레서 private room 은 sid 크랙 값을 가지고 
-# 방이름과 sid 값이 같다면 priaate 이고 
-# room id 를 socket id 에서 찾을 수 있다면 private room 
-# room id 를 socket id 에서 찾을 수 없다면 public room  
- 
-# peer to peer 과정 
-# send offer   - > send answer 
-# candidate   -> candidate 
-#offer 는 서버가 필요한 이유는 offer를 주고 받기 위함
+rooms 내부 로직은 메모리 상에 올라가 있는데 클라이언트 하나가 접속되어 있는 것도 사실상 하나의 방임
+그레서 private room 은 sid 크랙 값을 가지고 
+방이름과 sid 값이 같다면 priaate 이고 
+room id 를 socket id 에서 찾을 수 있다면 private room 
+room id 를 socket id 에서 찾을 수 없다면 public room  
+"""
+
+""" WebRTC 구동 방식
+peer to peer 과정 
+send offer   - > send answer 
+candidate   -> candidate    
+"""
 @sio.on('offer')
 async def offer(sid,*args, **kwargs):
     offer  = args[0]  # 클라이언트에서 받아온  offer
     roomname   = args[1]  # 방이름 
-    sio.emit('offer',get_all_offers(),to=sid) # offer를 발생시킨 sid 에게 현재 저장되어 있는 offer 리스트 반환 
-    save_rooms_info(roomname=roomname,sid=sid,file=offer)# 자신을 제외하고 전달하기 위해 이벤트 후 저장
+    sio.emit('offer',get_all_offers(roomname),to=sid) # offer를 발생시킨 sid 에게 현재 저장되어 있는 offer 리스트 반환 
+    save_rooms_info(roomname,sid,offer)# 자신을 제외하고 전달하기 위해 이벤트 후 저장
     sio.emit('offeradd',offer, room=roomname,skip_sid=sid) # 현재 접속된 방에서의 사람들은 해당 offer 만 받고 리스트에 추가
     #근데 이미 방에는 들어 있어서 sid 제외 해줘야 함
-    
+ 
+""" 클라이언트에서의 offer 처리 
+ 클라이언트 측 :
+ 자신의 offer 생성
+   const offer = await myPeerConnection.createOffer();
+   // 로컬에 offer 설정
+   myPeerConnection.setLocalDescription(offer);
+   console.log("sent the offer");
+   // 상대방에게 offer 전송
+   socket.emit("offer", offer, roomName);
+   
+   그걸 서버가 받고 방에 offer 전송 
+  클라에서도 또 socket.on('offer') 이벤트 받고 peer to peer 연결 처리 
+ 클라에서의 socketio.on('offer') =>
+ {mypeerconnection.setRemoteDescription(offer)} 
+ 클라이언트측은
+    offer 이벤트 받을시 리스트에 할당  mypeerconnections = []
+    offeradd 이벤트 받을 시 저장된 리스트에 추가 후 프레임로드 
 
-# 클라이언트 측 :
-# 자신의 offer 생성
-#   const offer = await myPeerConnection.createOffer();
-#   // 로컬에 offer 설정
-#   myPeerConnection.setLocalDescription(offer);
-#   console.log("sent the offer");
-#   // 상대방에게 offer 전송
-#   socket.emit("offer", offer, roomName);
-    
-#   그걸 서버가 받고 방에 offer 전송 
-
-#  클라에서도 또 socket.on('offer') 이벤트 받고 peer to peer 연결 처리 
-# 클라에서의 socketio.on('offer') =>
-# {mypeerconnection.setRemoteDescription(offer)} 
-
-
-@sio.on('answer')
-def answer(sid,*args, **kwargs):
-    answer= args[0]
-    roomname = args[1]
-    sio.emit('answer',answer,room= roomname)
+"""
 
 
 sio.on('ice')
@@ -188,9 +187,9 @@ def ice(sid, *args, **kwargs):
     roomname = args[1]
     sio.emit('ice',ice,room=roomname)
     
-@sio.on('roomchange') # 필요하다면 구현 
-async def roomchanged(sid,*args, **kwargs):
-    return "D"
+# @sio.on('roomchange') # 필요하다면 구현 
+# async def roomchanged(sid,*args, **kwargs):
+#     return "D"
     
      
 @sio.on('sendwav')
