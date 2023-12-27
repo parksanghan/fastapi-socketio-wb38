@@ -153,12 +153,7 @@ def disconnected(sid,*args, **kwargs):
 async def offer(sid,*args, **kwargs):
     offer  = args[0]  # 클라이언트에서 받아온  offer
     roomname   = args[1]  # 방이름  
-    data  = args[2]
-    rooms[roomname][sid]
-    if sid in sid_2_tutor: # 튜터인 경우  
-        with file_lock:
-            with open(f'{sid}.wav', 'ab') as f: #서버에서 저장할 폴더에 이제 sid 이름으로 이게 첫 유저면 저장 
-               await f.write(data)
+    rooms[roomname][sid] = offer
     sio.emit('offer',get_all_offers(),to=sid) # offer를 발생시킨 sid 에게 현재 저장되어 있는 offer 리스트 반환 
     save_rooms_info[roomname][sid] = offer # 자신을 제외하고 전달하기 위해 이벤트 후 저장
     sio.emit('offeradd',offer, room=roomname,skip_sid=sid) # 현재 접속된 방에서의 사람들은 해당 offer 만 받고 리스트에 추가
@@ -199,7 +194,12 @@ async def roomchanged(sid,*args, **kwargs):
     return "D"
     
      
-
+@sio.on('sendwav')
+async def sendwav(sid,*args, **kwargs):
+     if sid in sid_2_tutor: # 튜터인 경우  
+        with file_lock:
+            with open(f'{sid}.wav', 'ab') as f: #서버에서 저장할 폴더에 이제 sid 이름으로 이게 첫 유저면 저장 
+               await f.write(args[0])
     
 if __name__ == '__main__':
 
