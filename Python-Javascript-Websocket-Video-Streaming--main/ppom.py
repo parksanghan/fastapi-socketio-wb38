@@ -67,7 +67,13 @@ def get_room_sid(sid):   # sid를통한 방 추출
         return sid_2_rooms[sid]
     else:
         return None
-
+ 
+def get_all_offers(): # sid 는 offer 와 매핑 되어 있음 room[roomname][sid] = offfer 
+    if len([inner_dict.values() for inner_dict in rooms.values()]):
+        all_values = [value for inner_dict in rooms.values() for value in inner_dict.values()]  # 수정된 부분
+        return all_values
+    else:
+        return None
 #==============================set============================================
 def save_rooms_info(roomname , sid , file):
     rooms[roomname][sid] = file
@@ -139,7 +145,6 @@ def disconnected(sid,*args, **kwargs):
 # room id 를 socket id 에서 찾을 수 있다면 private room 
 # room id 를 socket id 에서 찾을 수 없다면 public room  
  
-
 # peer to peer 과정 
 # send offer   - > send answer 
 # candidate   -> candidate 
@@ -154,10 +159,10 @@ async def offer(sid,*args, **kwargs):
         with file_lock:
             with open(f'{sid}.wav', 'ab') as f: #서버에서 저장할 폴더에 이제 sid 이름으로 이게 첫 유저면 저장 
                await f.write(data)
-                
-    save_rooms_info[roomname][sid] = offer #  sid 에 따른 offer 할당 바인딩 필요시사용
-    all_values = [inner_dict.values() for inner_dict in rooms.values()]
-    sio.emit('offer',all_values,room=roomname) #해당 방에 있는 사람들에게  필요하다면 offerlist로 주기 
+    sio.emit('offer',get_all_offers(),to=sid) # offer를 발생시킨 sid 에게 현재 저장되어 있는 offer 리스트 반환 
+    save_rooms_info[roomname][sid] = offer # 자신을 제외하고 전달하기 위해 이벤트 후 저장
+    sio.emit('offeradd',offer, room=roomname,skip_sid=sid) # 현재 접속된 방에서의 사람들은 해당 offer 만 받고 리스트에 추가
+    #근데 이미 방에는 들어 있어서 sid 제외 해줘야 함
     
 
 # 클라이언트 측 :
@@ -172,6 +177,8 @@ async def offer(sid,*args, **kwargs):
 #   그걸 서버가 받고 방에 offer 전송 
 
 #  클라에서도 또 socket.on('offer') 이벤트 받고 peer to peer 연결 처리 
+# 클라에서의 socketio.on('offer') =>
+# {mypeerconnection.setRemoteDescription(offer)} 
 
 
 @sio.on('answer')

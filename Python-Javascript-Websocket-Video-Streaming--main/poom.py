@@ -10,7 +10,8 @@ import os
 import threading 
 app : FastAPI = FastAPI()
 app.mount('/static', StaticFiles(directory='static'), name='static')
- # (admin)
+
+# 비동기 서버 생성
 sio : socketio.AsyncServer = socketio.AsyncServer(async_mode='asgi',  
                           credits=True,
                            cors_allowed_origins = [
@@ -22,33 +23,36 @@ sio : socketio.AsyncServer = socketio.AsyncServer(async_mode='asgi',
                            
                            ])  
 
-sio.instrument(# auth=True,
-               {'username':'WB38' , 'password':os.environ['WB38']}
-                     )
+#관리자 모드 인증 설정
+# sio.instrument(auth=False) # 권한 없이 접속하기
+sio.instrument({'username':'WB38' , 'password':os.environ['WB38']})
 
- #WB38                           your_password
-
+#socketIO와 FastAPI를 합치기
 combined_asgi_app = socketio.ASGIApp(sio, app)
 
+#매니저 가져오기
 manager = sio.manager
-#clientsocket = socket.socket(socket.AF_INET ,socket.SOCK_STREAM)
-#host = '127.0.0.1'
-#port =  6000
-#clientsocket.connect((host,port))
 
-rooms : defaultdict[str, dict[str, str]] = defaultdict(dict[str, str]) # 방에 대한 모든 정보를 담음 rooms[room] 에서 키를 뽑아서 sid 리스트 획득
-#rooms =  defaultdict(dict) # rooms[roomnname][sid] = name    candidate , ice  
+# 방, 참여자, 참여자 정보를 2중 딕셔너리로 저장
+rooms : defaultdict[str, dict[str, str]] = defaultdict(dict[str, str]) 
+# rooms[roomnname][sid] = offer
+# roomnname : 방이름 (사용자지정 문자열)
+# sid : 소켓 id (해쉬값 문자열)
+# offer : 소켓 정보?
 
-sid_2_rooms : dict[str, str] = {}  # sid로 등록된 방 이름을 받아옴
-tutors : list[str] = [] #튜터들의 sid를 List로 저장
+# sid값으로 해당 소켓이 참여중인 방의 이름을 바로 알 수 있게 저장
+sid_2_rooms : dict[str, str] = {}  
+# 강의자는 별도로 저장해두기 
+tutors : list[str] = []
 
+# 공유자원 처리하려고 만든거라는데 필요 없다나? 신경 ㄴㄴ
 file_lock : threading.Lock = threading.Lock()
 
 #==============================get============================================
-def get_room_list():  # 저장된 방들의 이름들을 리스트로 반환
+def get_room_list():  # X > 리스트(모든 방의 이름)
     return list(rooms.keys())
  
-def get_roommember_list(roomname): #해당 방 안에 있는 sid들을 리스트로 반환
+def get_roommember_list(roomname): # 방 이름 > 리스트(그 방의 모든 참여자 ID)
     if not roomname in get_room_list():
         rooms[roomname] = []
     return list(rooms[roomname].keys())
@@ -60,22 +64,25 @@ def get_room_sid_ice(roomname, sid): #저장된 방에 있는 멤버 sid 에 있
     else:
         return None
 
-def get_roomname_by_sid(sid):   # sid를통한 방 추출 
+def get_roomname_by_sid(sid):   # 참여자 ID > 참여중인 방 이름 
     return sid_2_rooms[sid]
 
 #==============================set============================================
-def save_offer_in_room(roomname , sid , offer):
-    rooms[roomname][sid] = offer
+def save_offer_in_room(sid , offer): # 참여자 아이디에 해당하는 참여자 정보 저장
+    rooms[sid_2_rooms[sid]][sid] = offer
 
 #==============================control=============================================
 
 #delete method
-def remove_user_from_room(roomname, sid):
-    room_data = rooms.get(roomname)
-    if not room_data and sid in room_data: # roomname을 가진 room이 존재 and 해당 room에 sid이 존재.
-        return 0
+def remove_user_from_room(roomname, sid): # 방이름으로 방 안의 참여자 제거.
+    room = rooms.get(roomname)
+    if room is None: # roomname을 가진 room이 존재 and 해당 room에 sid이 존재.
+        return False
+    if not sid in room :
+        return False
     
-    del room_data[sid]
+    del room[sid]
+    return True
  
 
 #==============================socketio property===============================
@@ -89,7 +96,8 @@ async def connected(sid,*args, **kwargs):
     
     
 @sio.on('join_room')
-def joinroom(sid,*args, **kwargs): #1 인자 : 방이름 , #2인자 자료 
+def joinroom(sid,*args, **kwargs): #1 인자 : 방이름 
+    # 방이름 받아옴
     roomName : str = args[0]
 
     # 방 있는지 없는지 없으면 생성
@@ -99,22 +107,27 @@ def joinroom(sid,*args, **kwargs): #1 인자 : 방이름 , #2인자 자료
     else : # 있는 방이라면 방유저들에게 연결 이벤트 처리 
         sio.emit('user-connect', sid, room=roomName) # 기존 유저들이 sid 를 추가 하기 위한  자들어올때 방이름 받고   방에 없으면 안감
     
-    #후처리
-    sio.emit('connected',get_roommember_list(roomName), to = sid) # 해당 방안에 있는 리스트 모든 클라이언트 리스트  # 함수내부 있으면 방 리스트 리턴 없으면 생성 후 공백배열 리턴 
-    rooms[roomName][sid] = None # 초대장?  추가 (rooms[방이름][sid번호] =  클라이언트 정보 )
-    sid_2_rooms[sid] = roomName # sid  to  room 추가 (sid 를 통한 방이름 추출 ) 
-    sio.enter_room(sid=sid ,  room= roomName) # 방안에 넣기  맨 나중에 한 이유는 리스트를 줄때 본인을 제외하고 주기 위함 
+    # [후처리]
+    # 해당 방안에 있는 리스트 모든 클라이언트 리스트 
+    # 함수내부 있으면 방 리스트 리턴 없으면 생성 후 공백배열 리턴 
+    sio.emit('connected', get_roommember_list(roomName), to = sid) 
+    # 초대장?  추가 (rooms[방이름][sid번호] =  클라이언트 정보 )
+    rooms[roomName][sid] = None 
+    # sid  to  room 추가 (sid 를 통한 방이름 추출 ) 
+    sid_2_rooms[sid] = roomName 
+    # 방안에 넣기  맨 나중에 한 이유는 리스트를 줄때 본인을 제외하고 주기 위함 
+    sio.enter_room(sid=sid ,  room= roomName) 
      
     
 @sio.on('disconnect')
 def disconnected(sid,*args, **kwargs) :
-    # 방안에 있는 확인해본다.
+    # 방안에 있는지 확인해본다.
     isInRoom : bool = sid_2_rooms.get(sid) is not None
     roomname = sid_2_rooms.get(sid)
 
-    # 방안에 있었다면 브로드 캐스트
+    # 방안에 있었다면
     if isInRoom: 
-        #나간 사람 통지 방에 있는 사람들에게
+        #방에 남은 사람들에게 해당 유저의 퇴장을 통지
         sio.emit('user-disconnect', sid, to=roomname) 
         
         #sid를 roomname에서 내보냄
@@ -127,7 +140,7 @@ def disconnected(sid,*args, **kwargs) :
             manager.close_room(room=roomname)
             sio.emit('roomremove',roomname)
 
-    # 없어도 해준데요~
+    # roomname이 없어도 해준데요~
     rooms[roomname].pop(sid,None)
     sid_2_rooms.pop(sid,None)
     #sid_2_tutor.pop(sid,None)
