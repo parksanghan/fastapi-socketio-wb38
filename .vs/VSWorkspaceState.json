@@ -2,8 +2,10 @@
   "ExpandedNodes": [
     "",
     "\\Python-Javascript-Websocket-Video-Streaming--main",
+    "\\Python-Javascript-Websocket-Video-Streaming--main\\kamos_static",
+    "\\Python-Javascript-Websocket-Video-Streaming--main\\__pycache__",
     "\\static"
   ],
-  "SelectedNode": "\\Python-Javascript-Websocket-Video-Streaming--main",
+  "SelectedNode": "\\Python-Javascript-Websocket-Video-Streaming--main\\KamoTest_2.py",
   "PreviewInSolutionExplorer": false
 }

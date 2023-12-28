@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <link rel="shortcut icon" href="#">
+    <meta charset="UTF-8">
+    <title>WebRTC P2P 서버</title>
+</head>
+
+
+<body>
+    P2P 메세지 전송입니다.
+    <textarea id="messageBox" rows="10" cols="50"></textarea>
+    <button id ="sendMessageButton" onclick="sendMessage()">메시지 전송</button>
+    <button id="RequestConnectP2PButton" onclick="RequestConnectP2P()">연결 요청</button>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const socket = io('http://127.0.0.1:5000'); // 이거 주소 지워야할수도
+
+        let peerConnection;
+        let dataChannel;
+        let offer;
+
+        socket.on("connect", () => {
+            console.log("서버에 연결됨");
+            initPeerConnection();
+        });
+
+        async function initPeerConnection() {
+            console.log("initPeerConnection start!");
+            const configuration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+            peerConnection = new RTCPeerConnection(configuration);
+
+            offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            peerConnection.ondatachannel = (event) => {
+                dataChannel = event.channel;
+                // onopen 및 onmessage 이벤트 핸들러 등록 (옵션)
+
+                dataChannel.onmessage = handleDataChannelMessage;
+                dataChannel.onopen = () => {
+                    console.log("데이터 채널이 열렸습니다!");
+                };
+
+
+            };
+
+            // RTCDataChannel 설정
+            dataChannel = peerConnection.createDataChannel("chat");
+            dataChannel.onmessage = handleDataChannelMessage;
+            dataChannel.onopen = () => {
+                console.log("데이터 채널이 열렸습니다!");
+            };
+
+           
+            peerConnection.onicecandidate = handleICECandidate;
+
+            console.log("initPeerConnection end!");
+        }
+
+        function handleDataChannelMessage(event) {
+            console.log(`상대방: ${event.data}`);
+        }
+
+        function handleICECandidate(event) {
+
+            console.log("handleICECandidate start!");
+            if (event.candidate) {
+                console.log("handleICECandidate if (event.candidate) !");
+                // 상대방에게 자신의 ICE 정보를 전송
+                const iceCandidate = event.candidate.toJSON();
+                socket.emit("ice-candidate", { candidate: iceCandidate });
+            }
+            console.log("handleICECandidate end!");
+        }
+
+
+
+        // sendMessageButton 버튼에 클릭 이벤트 리스너 추가
+        document.getElementById("sendMessageButton").addEventListener("click", sendMessage);
+        // RequestConnectP2P 버튼에 클릭 이벤트 리스너 추가
+        document.getElementById("RequestConnectP2PButton").addEventListener("click", RequestConnectP2P);
+
+        async function sendMessage() {
+            const messageBox = document.getElementById("messageBox");
+            const message = messageBox.value;
+
+            if (dataChannel.readyState === 'open') {
+
+                console.log('sendMessage succeed : ' + message);
+                dataChannel.send(message);
+            } else {
+                console.error("Data channel is not open." + dataChannel.readyState);
+            }
+
+            // 메시지 박스 초기화
+            messageBox.value = "";
+        }
+
+        async function RequestConnectP2P()
+        {
+            await socket.emit("send_data_channel", { dataChannel: dataChannel });
+
+        }
+
+        // Offer를 수신한 피어
+        socket.on("offer", async (offer) => {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+            // Answer 생성
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            // Answer를 상대방에게 전송
+            socket.emit("answer", { answer: answer });
+        });
+
+        // ICE 정보를 수신
+        socket.on("ice-candidate", (iceCandidate) => {
+            // 받은 ICE 정보를 RTCIceCandidate 객체로 변환
+            const candidate = new RTCIceCandidate(iceCandidate.candidate);
+
+            // 받은 ICE 정보를 RTCPeerConnection에 추가
+            peerConnection.addIceCandidate(candidate);
+        });
+
+
+        // 시그널링 서버에서 보낸 SDP 메시지 처리
+        socket.on("sdp", (data) => {
+            //const peerConnection = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+            const offerSDP = `
+v=0
+o=- 20518 0 IN IP4 203.0.113.1
+s=-
+t=0 0
+a=group:BUNDLE audio
+a=msid-semantic: WMS
+m=audio 49170 RTP/SAVPF 0
+c=IN IP4 203.0.113.1
+a=rtcp:9 IN IP4 0.0.0.0
+a=ice-ufrag:F0F
+a=ice-pwd:F0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF
+a=ice-options:google-ice
+a=fingerprint:sha-256 38:C5:6E:26:66:D4:76:25:C9:6F:8B:F4:4F:02:58:33:06:29:AD:54:54:E3:7D:59:EC:68:C3:2C:F3:48:5C
+a=setup:actpass
+a=mid:audio
+a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level
+a=sendrecv
+a=rtcp-mux
+a=rtpmap:0 PCMU/8000
+a=ssrc:1 cname:K9wZmr8YjxX1s6LF
+`;
+
+
+
+            // SDP 교환
+            const remoteSessionDescription = new RTCSessionDescription({
+                type: "offer", // 또는 "answer"에 따라 설정
+                sdp: offerSDP
+            });
+
+
+            peerConnection.setRemoteDescription(remoteSessionDescription)
+                .then(() => peerConnection.createAnswer())
+                .then((answer) => peerConnection.setLocalDescription(answer))
+                .then(() => {
+                    // 응답 SDP를 시그널링 서버로 전송
+                    socket.emit("sdp", { sdp: peerConnection.localDescription });
+                });
+
+            // ICE 후보를 서버로 전송
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit("ice_candidate", { candidate: event.candidate });
+                }
+            };
+        });
+
+        while (offer == null);
+
+        socket.emit('Message', 'start_p2p Sended!');
+        socket.emit('start_p2p', offer);
+    </script>
+</body>
+</html>

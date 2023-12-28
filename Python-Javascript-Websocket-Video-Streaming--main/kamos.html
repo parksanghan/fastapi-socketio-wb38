@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <link rel="shortcut icon" href="#">
+    <meta charset="UTF-8">
+    <title>Socket.IO Fiddle</title>
+</head>
+
+
+<body>
+    <label for="myTextBox">텍스트 입력:</label>
+    <input type="text" id="myTextBox" name="myTextBox">
+
+    <!--버튼을 만들고 클릭 시 실행할 함수를 지정-->
+    <button onclick="executeCode()">toOther</button>
+    <button onclick="toP2P()">toP2P</button>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/static/kamos.js"></script>
+    <!--<script>
+        // 서버로의 연결 설정
+        const socket = io.connect('http://localhost:5000');
+
+        // 특정 이벤트를 발생시키는 조건
+        const someCondition = true;
+
+        // 조건이 참일 때 서버로 데이터를 전송하고, 서버에서는 이를 수신하여 이벤트를 발생시킴
+        if (someCondition) {
+            const dataToSend = { key: 'hello bro!' };
+
+            // 클라이언트에서 서버로 데이터를 전송
+            socket.emit('dataToSend', dataToSend);
+        }
+    </script>-->
+</body>
+</html>

@@ -9,7 +9,7 @@ from collections import  defaultdict
 import os
 import threading 
 app : FastAPI = FastAPI()
-app.mount('/static', StaticFiles(directory='static'), name='static')
+app.mount('/static', StaticFiles(directory='kamos_static'), name='kamos_static')
 
 # 비동기 서버 생성
 sio : socketio.AsyncServer = socketio.AsyncServer(async_mode='asgi',  
@@ -88,7 +88,7 @@ def remove_user_from_room(roomname, sid): # 방이름으로 방 안의 참여자
 #==============================socketio property===============================
 @app.get('/')
 async def index():
-    return FileResponse('fiddle.html')
+    return FileResponse('kamos.html')
 
 @sio.on('connect')
 async def connected(sid,*args, **kwargs):     
@@ -208,3 +208,4 @@ async def roomchanged(sid,*args, **kwargs):
 
 if __name__ == '__main__':
     uvicorn.run(combined_asgi_app, host='127.0.0.1', port=5000)
+    
