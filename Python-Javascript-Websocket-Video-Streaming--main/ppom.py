@@ -5,12 +5,14 @@ from fastapi.staticfiles import StaticFiles
 import socketio
 import socket 
 import uvicorn
-from collections import  defaultdict
+from collections import  defaultdict,UserDict,OrderedDict
 import os
 import threading 
 app = FastAPI()
 app.mount('/static', StaticFiles(directory='static'), name='static')
  # (admin)
+
+ 
 sio = socketio.AsyncServer(async_mode='asgi',  
                           credits=True,
                            cors_allowed_origins = [
@@ -104,15 +106,17 @@ async def coonnected(sid,*args, **kwargs):
 @sio.on('join_room')
 def joinroom(sid,*args, **kwargs): #1 인자 : 방이름 , #2인자 자료 
     if args[0] not in get_room_list(): # 없는 방이라면 생성되니 add 이벤트 
-        sio.emit('roomadd',args[0]) 
+        sio.emit('roomadd',args[0])  #  모든 유저들에게 "방"이 추가되었음을 통지  
         sid_2_tutor.append(sid)
+        sio.emit('istutor',to=sid) # 첫유저일때 해당 sid 에게 튜터임을 이벤트 전송
     if args[0] in get_room_list(): # 있는 방이라면 방유저들에게 연결 이벤트 처리 
-        sio.emit('user-connect', sid, room=args[0]) # 기존 유저들이 sid 를 추가 하기 위한  자들어올때 방이름 받고   방에 없으면 안감
+        sio.emit('user_connect', sid, room=args[0]) # 기존 유저들이 sid 를 추가 하기 위한  자들어올때 방이름 받고   방에 없으면 안감
+        
     sio.emit('connected',get_roommember_list(args[0]), to= sid) # 해당 방안에 있는 리스트 모든 클라이언트 리스트  # 함수내부 있으면 방 리스트 리턴 없으면 생성 후 공백배열 리턴 
     rooms[args[0]][sid] = None # 초대장?  추가 (rooms[방이름][sid번호] =  클라이언트 정보 )
     sid_2_rooms[sid] = args[0] # sid  to  room 추가 (sid 를 통한 방이름 추출 ) 
     sio.enter_room(sid=sid ,  room= args[0]) # 방안에 넣기  맨 나중에 한 이유는 리스트를 줄때 본인을 제외하고 주기 위함 
-     
+    RTC
      
     
 @sio.on('disconnect')
@@ -154,9 +158,13 @@ candidate   -> candidate
 async def offer(sid,*args, **kwargs):
     offer  = args[0]  # 클라이언트에서 받아온  offer
     roomname   = args[1]  # 방이름 
-    sio.emit('offer',get_all_offers(roomname),to=sid) # offer를 발생시킨 sid 에게 현재 저장되어 있는 offer 리스트 반환 
+    sio.emit('offer',get_all_offers(roomname),get_roommember_list(roomname),to=sid) 
+    # offer를 발생시킨 sid 에게 현재 저장되어 있는 offer 리스트 반환 
+    # get_roommember_list 반환추가 -> get_all_offers 와 get_roommember_list 해당 함수들이 인덱스값을 공유하므로 
+    # offer 할당 시 콜백으로 해당 객체의 주인인 sid를 보내 icecandidate 를 보내기 위함
     save_rooms_info(roomname,sid,offer)# 자신을 제외하고 전달하기 위해 이벤트 후 저장
-    sio.emit('offeradd',offer, room=roomname,skip_sid=sid) # 현재 접속된 방에서의 사람들은 해당 offer 만 받고 리스트에 추가
+    sio.emit('offeradd',offer, sid,room=roomname,skip_sid=sid) # 현재 접속된 방에서의 사람들은 해당 offer 만 받고 리스트에 추가
+    # sid 추가 -> offer 와 그 정보를 주인인 sid 도 보냄
     #근데 이미 방에는 들어 있어서 sid 제외 해줘야 함
  
 """ 클라이언트에서의 offer 처리 
@@ -188,18 +196,25 @@ socket.on("welcome", async () => {
 });
 
 peerConnectionlist = []
-socket.on("offer", async (offerlist) => {
-  for (const offer of offerlist) {
+peer_sid_list = []
+socket.on("offer", async (offerlist,member_sid_list) => {
+    peer_sid_list  = member_sid_list
+  for (const offer of offerlist AND const memsid of member_sid_list) {
     const peerConnection = new RTCPeerConnection(configuration);
-    await peerConnection.setRemoteDescription(offer);
+    peerconnection.eventlistener('icecandidate', icecallback(memsid) )
     peerConnectionlist.push(peerConnection);
+    await peerConnection.setRemoteDescription(offer); #해당 함수 호출후 icecandidate 이벤트 발생 
+    그래서 인덱스 구하고 그 인덱스에 있는 sid 에게 보내는것도 가능하고 이 for문내부에서 하나씩할당하기에 괜찮을듯? 
+    
   }
 });
 
-socket.on("offeradd", async (offer) => {
+socket.on("offeradd", async (offer,sid) => {
   const peerConnection = new RTCPeerConnection(configuration);
-  peerConnection.setRemoteDescription(offer);
+  peerConnection.listener('icecandidate',icecllaback(sid) )
   peerConnectionlist.push(peerConnection);  // 리스트에 Peer Connection 추가
+  peerConnection.setRemoteDescription(offer);
+   
 });
 
  
@@ -209,22 +224,130 @@ socket.on("offeradd", async (offer) => {
 
 """ icecandidate 
 offer 를 모두 가지고 그걸 받는 걸 모두 끝냈을 때 
-peer to peer 연결의 양쪽에서 icecandidate 라는 이벤트를 실행
+peer to peer 연결의 양쪽에서 icecandidate 라는 이벤트를 실행 
+-> 사실상 add
 그 icecandidate 정보를 서로 주고 받아야함 근데 어떻게 특정해 시발
+그건 그렇다쳐 
+이제 발생되었을때 보내면 상대는 addicecandidate 를 하고 다시 자신의 걸 보냄
+그 러고 보낸 클라에게 다시 자신의 ice를 보내 그 클라는 addicecandidate 를 하고
+이제 서로의 ice 를 알고 있을때 addIceStream 이벤트가 발생 
 """
-sio.on('ice')
+sio.on('ice')  # offer를 받고 해당 offer를 
 def ice(sid, *args, **kwargs):
     ice  = args[0]
-    roomname = args[1]
-    sio.emit('ice',ice,room=roomname)
+    targetsid = args[1]
+    roomname=sid_2_rooms.get(targetsid)
+    if targetsid in get_roommember_list(roomname):
+         sio.emit('ice',ice,sid,to=targetsid)
+
+""" ice를 처리하기 위한 socket.on("offer") 이벤트 처리 클라이언트 구현 방식 offerlist , getmemberlist 형식 
+  peerconnectionlist =  []
+  function makeaddconnection(sid) #=> offeradd 즉 , offer 주는 클라이언트 추가시 마다 반복 
+ {
+    const peerconnection   = new RTCPeerConnection(configure);
+    peerConnectionlist.push(peerconnection);
+    myPeerConnection.addEventListener("icecandidate", handleIce(sid));
+    myPeerConnection.addEventListener("addstream", handleAddStream);# 상대 peer 에게서 스트림 트랙을받았을때 발생
+    # -> 상대가 아래의 코드를실행해줘야 addstream 이벤트가 발생함  
+     myStream
+    .getTracks()
+    .forEach((track) => myPeerConnection.addTrack(track, myStream)); # 자신의 스트림 트랙을 이 connection 상대에게 전송함
+     return peerconnection
+ }
+  socket.on("offer",(offerlist, memberlist)=>{
+    for(let i = 0; i< Math.min(offerlist.length,memberlist.length); i++){
+    const offer = offerlist[i];
+    const sid = memberlist[i];
+    peerconnection = await makeaddconnection(sid) # 참조임
+    peerconnection.setRemoteDescrition(offer) # 이벤트 발생 
+    }
+  })
+
+  function handleice(sid){
+    #=> setRemoteDescrtion 에 의해 icecandidate 이벤트가 발생 
+    icecandidate=data.candidate
+    socket.emit('ice',icecanddiate, sid) # 해당 sid 는 객체의 주인인 sid 소켓 번호임 
+ }
+    fuctnion handleAddStream(){
+    => 상대가 나에게 본인의 스트림 트랙을 addtrack 해주었을때 발생되는 이벤트 
+    const streamBox = document.createElement("div");
+    streamBox.className = "streamBox";
+
+    // 스트림 적용
+    const peerFace = document.createElement("video");
+    peerFace.srcObject = data.stream;
+ 
+
+    // 네모칸에 스트림 추가
+    streamBox.appendChild(peerFace);
+    streamContainer.appendChild(streamBox);
+ } 
+
+
+"""
+""" ice를 처리하기 위한 socket.on("offeradd")이벤트 처리 클라이언트 구현 방식 
+ 클라이언트에서 offeradd 시 
+ peerconnectionlist =  []
+  function makeaddconnection(sid) #=> offeradd 즉 , offer 주는 클라이언트 추가시 마다 반복 
+ {
+    const peerconnection   = new RTCPeerConnection(configure);
+    peerConnectionlist.push(peerconnection);
+     myPeerConnection.addEventListener("icecandidate", handleIce(sid));
+    myPeerConnection.addEventListener("addstream", handleAddStream);# 상대 peer 에게서 스트림 트랙을받았을때 발생
+    # -> 상대가 아래의 코드를실행해줘야 addstream 이벤트가 발생함  
+     myStream
+    .getTracks()
+    .forEach((track) => myPeerConnection.addTrack(track, myStream)); # 자신의 스트림 트랙을 이 connection 상대에게 전송함
+    return peerconnection
+ }
+ socket.on('offeradd',async (offer,sid)=>
+ {
+    peerconnection = await makeaddconnection(sid);  
+    peerconnection.setRemoteDescrition(offer); #이때 icecanddiate 이벤트가 발생함   
+ })
+
+ function handleice(sid){
+    #=> setRemoteDescrtion 에 의해 icecandidate 이벤트가 발생 
+    icecandidate=data.candidate
+    socket.emit('ice',icecanddiate, sid) # 해당 sid 는 객체의 주인인 sid 소켓 번호임 
+ }
+    fuctnion handleAddStream(){
+    => 상대가 나에게 본인의 스트림 트랙을 addtrack 해주었을때 발생되는 이벤트 
+    const streamBox = document.createElement("div");
+    streamBox.className = "streamBox";
+
+    // 스트림 적용
+    const peerFace = document.createElement("video");
+    peerFace.srcObject = data.stream;
+ 
+
+    // 네모칸에 스트림 추가
+    streamBox.appendChild(peerFace);
+    streamContainer.appendChild(streamBox);
+ } 
+
+"""
+
+sio.on('iceanswer')# ice 이벤트로만으로도 처리가 잘되면 필요없음 
+def icecallback(sid ,*args, **kwargs):
+    ice = args[0]
+    targetsid  = args[1]
+    roomname=sid_2_rooms.get(targetsid)
+    if targetsid in get_roommember_list(roomname):
+        sio.emit('iceanswer',ice,sid,to=targetsid)
+""" ice 그거 어떻게 먹는건데 ?
+ 
+
+
+"""   
     
 # @sio.on('roomchange') # 필요하다면 구현 
 # async def roomchanged(sid,*args, **kwargs):
-#     return "D"
+# return "D"
     
      
 @sio.on('sendwav')
-async def sendwav(sid,*args, **kwargs):
+async def sendwav(sid,*args, **kwargs):# 10초마다 음성파일 줘
      if sid in sid_2_tutor: # 튜터인 경우  
         with file_lock:
             with open(f'{sid}.wav', 'ab') as f: #서버에서 저장할 폴더에 이제 sid 이름으로 이게 첫 유저면 저장 
