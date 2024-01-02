@@ -57,7 +57,7 @@ def get_roommember_list(roomname): #저장된 방에 있는  멤버 sid 리스�
         getrooms=rooms[roomname] = []
         return getrooms
 
-def get_room_sid_ice(roomname, sid): #저장된 방에 있는 멤버 sid 에 있는 정보 반환
+def get_room_sid_offer(roomname, sid): #저장된 방에 있는 멤버 sid 에 있는 정보 반환
     if sid in get_roommember_list(roomname):
         return rooms[roomname][sid]
     else:
@@ -99,12 +99,12 @@ async def index():
     return FileResponse('fiddle.html')
 
 @sio.on('connect')
-async def coonnected(sid,*args, **kwargs):     
-    await sio.emit("fuckshit", list(rooms),to=sid) # 접속 시 모든 방에 대한 리스트 줌 방 보기  
+def coonnected(sid,*args, **kwargs):     
+    sio.emit("connected", list(rooms),to=sid) # 접속 시 모든 방에 대한 리스트 줌 방 보기  
     
     
 @sio.on('join_room')
-def joinroom(sid,*args, **kwargs): #1 인자 : 방이름 , #2인자 자료 
+def joinroom(sid,*args, **kwargs): #1 인자 : 방이름 , #2인자 자료 없음
     if args[0] not in get_room_list(): # 없는 방이라면 생성되니 add 이벤트 
         sio.emit('roomadd',args[0])  #  모든 유저들에게 "방"이 추가되었음을 통지  
         sid_2_tutor.append(sid)
@@ -112,30 +112,40 @@ def joinroom(sid,*args, **kwargs): #1 인자 : 방이름 , #2인자 자료
     if args[0] in get_room_list(): # 있는 방이라면 방유저들에게 연결 이벤트 처리 
         sio.emit('user_connect', sid, room=args[0]) # 기존 유저들이 sid 를 추가 하기 위한  자들어올때 방이름 받고   방에 없으면 안감
         
-    sio.emit('connected',get_roommember_list(args[0]), to= sid) # 해당 방안에 있는 리스트 모든 클라이언트 리스트  # 함수내부 있으면 방 리스트 리턴 없으면 생성 후 공백배열 리턴 
+    sio.emit('roomconnected',get_roommember_list(args[0]), to= sid) # 해당 방안에 있는 리스트 모든 클라이언트 리스트  # 함수내부 있으면 방 리스트 리턴 없으면 생성 후 공백배열 리턴 
     rooms[args[0]][sid] = None # 초대장?  추가 (rooms[방이름][sid번호] =  클라이언트 정보 )
     sid_2_rooms[sid] = args[0] # sid  to  room 추가 (sid 를 통한 방이름 추출 ) 
     sio.enter_room(sid=sid ,  room= args[0]) # 방안에 넣기  맨 나중에 한 이유는 리스트를 줄때 본인을 제외하고 주기 위함 
-    RTC
+  
      
     
 @sio.on('disconnect')
 def disconnected(sid,*args, **kwargs):
-    if sid_2_rooms.get(sid):
-        sio.emit('user-disconnect',sid,to=sid_2_rooms[sid]) #나간사람 통지 방에 있는 사람들에게
+    # 방안에 있는지 확인해본다.
+    isInRoom : bool = sid_2_rooms.get(sid) is not None
     roomname = sid_2_rooms.get(sid)
-    if roomname: 
-        sio.leave_room(sid=sid,room=roomname)
+
+    # 방안에 있었다면
+    if isInRoom: 
+        #방에 남은 사람들에게 해당 유저의 퇴장을 통지
+        sio.emit('user-disconnect', sid, to=roomname) 
+        
+        #sid를 roomname에서 내보냄
+        sio.leave_room(sid, roomname)
         remove_user_from_room(roomname=roomname, sid= sid)
         sid_2_rooms.pop(sid,None)
+
         if len(rooms[roomname].keys())== 0:
             rooms.pop(roomname,None)
             manager.close_room(room=roomname)
             sio.emit('roomremove',roomname)
+
+    # roomname이 없어도 해준데요~
     rooms[roomname].pop(sid,None)
     sid_2_rooms.pop(sid,None)
     if sid in sid_2_tutor: 
-        sid_2_tutor.remove(sid)
+        sid_2_tutor.remove(sid) # 교수가 나갓을때 ai 서버와 통신하여 트레이닝 시작
+        # 리스트는 팝이안됨 
     
 """ disconnect 로직 구성        
     if sid  in get_roommember_list(args[0]):
@@ -154,6 +164,8 @@ peer to peer 과정
 send offer   - > send answer 
 candidate   -> candidate    
 """
+# 서버가 offer 이벤트를 받는 시점 : 클라이언트 측에서 roomjoin에서 신규 사용자를 추가시킬때 
+# 클라에서는 room-join 이벤트를 받는데이때 방에 들어가면서 자신의 offer 를 전달함 
 @sio.on('offer')    
 async def offer(sid,*args, **kwargs):
     offer  = args[0]  # 클라이언트에서 받아온  offer
@@ -169,7 +181,7 @@ async def offer(sid,*args, **kwargs):
  
 """ 클라이언트에서의 offer 처리 
  클라이언트 측 :
- 자신의 offer 생성 
+ 자신의 offer 생성  이거는 방들어갈때 자신의 걸 가져옴
    const offer = await myPeerConnection.createOffer();
    // 로컬에 offer 설정
    myPeerConnection.setLocalDescription(offer);
@@ -335,7 +347,7 @@ def icecallback(sid ,*args, **kwargs):
     roomname=sid_2_rooms.get(targetsid)
     if targetsid in get_roommember_list(roomname):
         sio.emit('iceanswer',ice,sid,to=targetsid)
-""" ice 그거 어떻게 먹는건데 ?
+""" icecandidate 데이터를 받았을때 
  
 
 
@@ -346,12 +358,18 @@ def icecallback(sid ,*args, **kwargs):
 # return "D"
     
      
-@sio.on('sendwav')
+@sio.on('sendtext')
 async def sendwav(sid,*args, **kwargs):# 10초마다 음성파일 줘
-     if sid in sid_2_tutor: # 튜터인 경우  
+    text = args[0]
+    roomanedir  = sid_2_rooms(sid)
+    filename = sid
+    if sid in sid_2_tutor: # 튜터인 경우  
         with file_lock:
-            with open(f'{sid}.wav', 'ab') as f: #서버에서 저장할 폴더에 이제 sid 이름으로 이게 첫 유저면 저장 
-               await f.write(args[0])
+            directory_path = os.path.join(os.getcwd(), roomanedir)
+            os.makedirs(directory_path, exist_ok=True)
+            file_path = os.path.join(directory_path, f"{filename}.txt")
+            with open(file_path, 'ab') as f: #서버에서 저장할 폴더에 이제 sid 이름으로 이게 첫 유저면 저장 
+               await f.write(text)
     
 if __name__ == '__main__':
 
