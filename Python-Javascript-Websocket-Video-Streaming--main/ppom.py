@@ -97,10 +97,11 @@ def remove_user_from_room( roomname, sid):
 async def index():
     
     return FileResponse('fiddle.html')
-
+ 
 @sio.on('connect')
-def coonnected(sid,*args, **kwargs):     
-    sio.emit("connected", list(rooms),to=sid) # 접속 시 모든 방에 대한 리스트 줌 방 보기  
+async def coonnected(sid,*args, **kwargs):     
+ 
+    await sio.emit("connected", get_room_list(),to=sid) # 접속 시 모든 방에 대한 리스트 줌 방 보기  
     
     
 @sio.on('join_room')
@@ -164,12 +165,13 @@ peer to peer 과정
 send offer   - > send answer 
 candidate   -> candidate    
 """
+
 # 서버가 offer 이벤트를 받는 시점 : 클라이언트 측에서 roomjoin에서 신규 사용자를 추가시킬때 
 # 클라에서는 room-join 이벤트를 받는데이때 방에 들어가면서 자신의 offer 를 전달함 
 @sio.on('offer')    
 async def offer(sid,*args, **kwargs):
     offer  = args[0]  # 클라이언트에서 받아온  offer
-    roomname   = args[1]  # 방이름 
+    roomname   = sid_2_rooms.get(sid)  # 방이름 
     sio.emit('offer',get_all_offers(roomname),get_roommember_list(roomname),to=sid) 
     # offer를 발생시킨 sid 에게 현재 저장되어 있는 offer 리스트 반환 
     # get_roommember_list 반환추가 -> get_all_offers 와 get_roommember_list 해당 함수들이 인덱스값을 공유하므로 
@@ -215,8 +217,10 @@ socket.on("offer", async (offerlist,member_sid_list) => {
     const peerConnection = new RTCPeerConnection(configuration);
     peerconnection.eventlistener('icecandidate', icecallback(memsid) )
     peerConnectionlist.push(peerConnection);
-    await peerConnection.setRemoteDescription(offer); #해당 함수 호출후 icecandidate 이벤트 발생 
-    그래서 인덱스 구하고 그 인덱스에 있는 sid 에게 보내는것도 가능하고 이 for문내부에서 하나씩할당하기에 괜찮을듯? 
+    await peerConnection.setRemoteDescription(offer); 
+    #해당 함수 호출후 icecandidate 이벤트 발생 
+    그래서 인덱스 구하고 그 인덱스에 있는 sid 에게 보내는것도 가능하고 이 
+    for문내부에서 하나씩할당하기에 괜찮을듯? 
     
   }
 });

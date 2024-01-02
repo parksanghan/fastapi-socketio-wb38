@@ -72,7 +72,7 @@ def get_all_offers(roomname): # sid 는 offer 와 매핑 되어 있음 room[room
         all_values = [value for inner_dict in rooms.values() for value in inner_dict.values()]  # 수정된 부분
         return all_values
     else:
-        return None2
+        return None
 
 #==============================set============================================
 def save_user_offer(sid , offer): # 참여자 아이디에 해당하는 참여자 정보 저장

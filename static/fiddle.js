@@ -10,6 +10,10 @@
      
   });
 
+  socket.on('connected',(data)=>{
+    console.log('you are connected');
+    console.log(data);
+  })
   socket.on('disconnect',  () => {
     console.log(`disconnect ${socket.id}`);
     socket.emit
