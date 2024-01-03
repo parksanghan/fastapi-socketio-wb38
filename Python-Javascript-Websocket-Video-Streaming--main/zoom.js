@@ -213,16 +213,16 @@ async function makeaddconnection(sid)
 {
   const peerconnection   = new RTCPeerConnection(configure);
    peerConnectionlist.push(peerconnection);
-   myPeerConnection.addEventListener("icecandidate", handleice(sid));
+   peerconnection.addEventListener("icecandidate", handleice(sid));
    // 등록된 sid 값으로 이벤트 발동됨 
-   myPeerConnection.addEventListener("addstream", handleAddStream);
+   peerconnection.addEventListener("track", handleAddStream(sid));
    //# 상대 peer 에게서 스트림 트랙을받았을때 발생
    //-> 상대가 아래의 코드를실행해줘야 addstream 이벤트가 발생함  
     myStream
    .getTracks()
-   .forEach((track) => myPeerConnection.addTrack(track, myStream));
+   .forEach((track) => peerconnection.addTrack(track, myStream));
    // # 자신의 스트림 트랙을 이 connection 상대에게 전송함
-    return peerconnection
+    return peerconnection;
 }
 function handleice(sid){
   //#=> setRemoteDescrtion 에 의해 icecandidate 이벤트가 발생 
@@ -262,7 +262,28 @@ function handleAddStream(){
     peerconnection.setRemoteDescrition(offer); // 아이스 캔디 이벤트 발생시점 
 
   });
-  //#endregion
+
+  socket.on('ice',(icedata,sid)=>{
+     index = findIndexInList(sid);
+     if(index => 0 ){
+      peerindex =peerlistconnections[index];
+      peerindex.addIceCandidate(icedata);
+     }
+  });
+ 
+  function findIndexInList(targetValue) {
+    for (let i = 0; i < memberlist.length; i++) {
+        if (memberlist[i] === targetValue) {
+            return i;
+        }
+    }
+    return -1; // 값이 리스트에 없을 경우 -1을 반환합니다.
+}
   
+   
+  //#endregion
+  //#region  ice 이벤트  후 처리 
+
+  //#endregion
 
 })();
