@@ -17,7 +17,18 @@ let cameraOff = false;
 let roomName;
 let myPeerConnection;
 let myDataChannel;
-
+var PC_CONFIG = {
+  iceServers: [
+      {
+          urls: ['stun:stun.l.google.com:19302', 
+                  'stun:stun1.l.google.com:19302',
+                  'stun:stun2.l.google.com:19302',
+                  'stun:stun3.l.google.com:19302',
+                  'stun:stun4.l.google.com:19302'
+              ]
+      },
+  ]
+};
 
 async function getCameras() {
     try {
@@ -126,7 +137,7 @@ async function getCameras() {
         option.text = data;
         listBox.add(option);
     } }
-  listbox.addEventListener('change',updateListBox)
+  listbox.addEventListener('change',updateListBox);
   //#region  connect 후처리 
   socket.on('connected', async(data)=> { // 연결되었을때 방 리스트 받음
     console.log(`connected ${socket.id}`);
@@ -180,42 +191,50 @@ async function getCameras() {
 
   socket.on('user-disconnect',  (sid) => {
     console.log(`user-disconnect ${socket.id}`);
-    memberlist.pop(sid); // for 문처리 필요 
+    removeSidFromMemberList(sid);
   });
+
+  function removeSidFromMemberList(sid) {
+    memberlist = memberlist.filter((value) => value !== sid);
+  }
+  // 
   socket.on('roomremove',(nameroom)=>
   {
     console.log('roomdeleted');
     removeOptionByRoomName(nameroom);// 웹에서만 지움 
   });
+  // 완료 
   function removeOptionByRoomName(valueToRemove) {
     var options = listBox.options;
-
+    roomListData = roomListData.filter(room => room !== valueToRemove);
+    // 원본데이터 삭제후 html 띄워진것도 삭제 
     for (var i = 0; i < options.length; i++) {
         if (options[i].value === valueToRemove) {
             options[i].remove();
-            
-            // 만약에 valueToRemove를 가진 데이터가 있다면, 그 데이터도 원본 배열에서 제거합니다.
-            var indexInDataArray = originalData.indexOf(valueToRemove);
-            if (indexInDataArray !== -1) {
-                originalData.splice(indexInDataArray, 1);
-            }
-
-            break;  // 찾은 후에는 더 이상 반복할 필요가 없으므로 루프를 종료합니다.
+            break;
         }
     }
 }
  
   //#endregions
   //#region offer 송수신 부분
-
+// 문제야기 
+// socketio 가 너무빨라서 모시깽이해서 전역으로 둔거로 아는데
+// 리스트를 쓰면서 게속 전역데이터를 가져오는데 
+// 전역에서 이미 push 된 데이터를 참조해서 가져와서 변형하기에 이상하게 될거같은데
+// 완료 
 async function makeaddconnection(sid) 
 //#=> offeradd 즉 , offer 주는 클라이언트 추가시 마다 반복 
 {
-  const peerconnection   = new RTCPeerConnection(configure);
+  const peerconnection   = new RTCPeerConnection(PC_CONFIG);
+    
    peerConnectionlist.push(peerconnection);
-   peerconnection.addEventListener("icecandidate", handleice(sid));
+   peerconnection.addEventListener("icecandidate", (data)=>
+   {
+    handleice(data, sid);
+  });
    // 등록된 sid 값으로 이벤트 발동됨 
-   peerconnection.addEventListener("track", handleAddStream(sid));
+   peerconnection.addEventListener("track", handleAddStream);
    //# 상대 peer 에게서 스트림 트랙을받았을때 발생
    //-> 상대가 아래의 코드를실행해줘야 addstream 이벤트가 발생함  
     myStream
@@ -223,28 +242,30 @@ async function makeaddconnection(sid)
    .forEach((track) => peerconnection.addTrack(track, myStream));
    // # 자신의 스트림 트랙을 이 connection 상대에게 전송함
     return peerconnection;
-}
-function handleice(sid){
+} 
+// 완료
+function handleice(data,sid){ //해당 setRemoteDescrition을 한 객체를 한 sid 에게 
+  // 주기 위해 
   //#=> setRemoteDescrtion 에 의해 icecandidate 이벤트가 발생 
-  icecandidate=data.candidate
-  socket.emit('ice',icecanddiate, sid)
+  socket.emit('ice',data.candidate, sid); // 보내야할 sid 
   // # 해당 sid 는 객체의 주인인 sid 소켓 번호임 
 }
-function handleAddStream(){
+//완료 
+function handleAddStream(data){
   //=> 상대가 나에게 본인의 스트림 트랙을 addtrack 해주었을때 발생되는 이벤트 
   const streamBox = document.createElement("div");
   streamBox.className = "streamBox";
 
   // 스트림 적용
   const peerFace = document.createElement("video");
-  peerFace.srcObject = data.stream;
+  peerFace.srcObject = data.streams[0];
 
 
   // 네모칸에 스트림 추가
   streamBox.appendChild(peerFace);
   streamContainer.appendChild(streamBox);
 } 
-
+  //완료 
   socket.on('offer',async(offerarray,)=>{
     for(let i = 0; i< Math.min(offerlist.length,memberlist.length); i++){
       const offer = offerlist[i];
@@ -255,22 +276,23 @@ function handleAddStream(){
         //) # 이벤트 발생 
       }
   });
-  
+  // 완료 
   socket.on('offeradd',async(offer,sid)=>{
 
-    peerconnection = await makeaddconnection(sid) ;
+    peerconnection = await makeaddconnection(sid);
     peerconnection.setRemoteDescrition(offer); // 아이스 캔디 이벤트 발생시점 
 
-  });
-
+  }); 
+  // 완료
   socket.on('ice',(icedata,sid)=>{
      index = findIndexInList(sid);
      if(index => 0 ){
       peerindex =peerlistconnections[index];
-      peerindex.addIceCandidate(icedata);
+      peerindex.addIceCandidate(icedata);// addIcecandidate 이거하는 
+      //순간 addstream 이벤트가 발생되나 ? 
      }
   });
- 
+  // 완료
   function findIndexInList(targetValue) {
     for (let i = 0; i < memberlist.length; i++) {
         if (memberlist[i] === targetValue) {
