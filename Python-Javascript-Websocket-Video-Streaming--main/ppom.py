@@ -172,7 +172,7 @@ candidate   -> candidate
 async def offer(sid,*args, **kwargs):
     offer  = args[0]  # 클라이언트에서 받아온  offer
     roomname   = sid_2_rooms.get(sid)  # 방이름 
-    sio.emit('offer',get_all_offers(roomname),get_roommember_list(roomname),to=sid) 
+    sio.emit('offer',get_all_offers(roomname), to=sid) 
     # offer를 발생시킨 sid 에게 현재 저장되어 있는 offer 리스트 반환 
     # get_roommember_list 반환추가 -> get_all_offers 와 get_roommember_list 해당 함수들이 인덱스값을 공유하므로 
     # offer 할당 시 콜백으로 해당 객체의 주인인 sid를 보내 icecandidate 를 보내기 위함

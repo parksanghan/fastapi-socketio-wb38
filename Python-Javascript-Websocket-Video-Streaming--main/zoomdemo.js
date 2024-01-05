@@ -1,13 +1,13 @@
 'use strict';
- // 해당 버전은 peerlist가 리스트인 버전입니다. 
-(function() {
-  let myStrdeam;
-  const socket = io('http://127.0.0.1:5000'); // 이거 주소 지워야할수도 
-  const myFace = document.getElementById("myFace");
-  const muteBtn = document.getElementById("mute");
-  const cameraBtn = document.getElementById("camera");
-  const camerasSelect = document.getElementById("cameras");
-  const call = document.getElementById("call");
+ // 해당 버전은 peerlist가 딕셔너리인 버전입니다. 
+ //ex peerlist[peer_id] = new RTCPeerConnection(configure); 
+var _peer_list =  {}; 
+const socket = io('http://127.0.0.1:5000'); // 이거 주소 지워야할수도 
+const myFace = document.getElementById("myFace");
+const muteBtn = document.getElementById("mute");
+const cameraBtn = document.getElementById("camera");
+const camerasSelect = document.getElementById("cameras");
+const call = document.getElementById("call");
 
   call.hidden = true;
 
@@ -108,7 +108,26 @@ async function getCameras() {
   cameraBtn.addEventListener("click", handleCameraClick);
   camerasSelect.addEventListener("input", handleCameraChange);
 
+  const welcome = document.getElementById("welcome");
+  const welcomeForm = welcome.querySelector("form");
 
+  async function initCall() {
+    welcome.hidden = true;
+    call.hidden = false;
+    await getMedia();
+    await makeaddconnection();
+  }
+
+  async function handleWelcomeSubmit(event) {
+    event.preventDefault();
+    const input = welcomeForm.querySelector("input");
+    await initCall();
+    socket.emit("join_room", input.value);
+    roomName = input.value;
+    input.value = "";
+  }
+
+  welcomeForm.addEventListener("submit", handleWelcomeSubmit);
   // socket.emit join room은 버튼핸들러로 하는거임 
   // 아래부터는 emit 에 대한 이벤트 동작은 joinroom 이후 임 
  
@@ -147,9 +166,9 @@ async function getCameras() {
     console.log('you are tutor');
     is_tutor = true; 
   });
-  is_tutor.addEventListener('change',tutorWavhandler); // 값이 바뀌면 true 임 즉 tutor 이므로
+  is_tutor.addEventListener('change',tutorEventhandler); // 값이 바뀌면 true 임 즉 tutor 이므로
   // 이벤트 발생시 함수로 다른쓰레드로 setinterval로 10초마다 서버로 업데이트
-  function tutorWavhandler(){ // 추가작업 나중에 필요 
+  function tutorEventhandler(){ // 추가작업 나중에 필요 
   // internal  을통한 10초마다 버퍼를 통한 음성 스트리밍을 전달 
 
   }
@@ -157,10 +176,14 @@ async function getCameras() {
   socket.on('roomconnected',async(sidlist)=>{
     console.log('roomconnected');
     memberlist  = sidlist;
+    for(const peer_id of memberlist){
+        _peer_list[peer_id]=undefined;
+        // html 에 필요한 레이아웃추가 코드 필요 
+    }
     const myoffer  = await myPeerConnection.createOffer();// 자신의 offer 생성
     myPeerConnection.setLocalDescription(myoffer); // 이건 자신의 offer를 만들어서 전달
     console.log(`send my offer to server`);
-    socket.emit(' offer',myoffer);
+    socket.emit('offer',myoffer);
   })
   //완료 
   socket.on('user_connect',(sid)=>{
@@ -295,4 +318,4 @@ function handleAddStream(data){
 
   //#endregion
 
-})();
+ 
