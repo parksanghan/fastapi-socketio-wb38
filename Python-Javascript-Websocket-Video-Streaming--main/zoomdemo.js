@@ -103,7 +103,7 @@ async function getCameras() {
         .find((sender) => sender.track.kind === "video");
       videoSender.replaceTrack(videoTrack);
     }
-  }
+  } 
   muteBtn.addEventListener("click", handleMuteClick);
   cameraBtn.addEventListener("click", handleCameraClick);
   camerasSelect.addEventListener("input", handleCameraChange);
@@ -115,7 +115,8 @@ async function getCameras() {
     welcome.hidden = true;
     call.hidden = false;
     await getMedia();
-    await makeaddconnection();
+    // await makeaddconnection(); 필요없음 원래 너무빠라서 객체 생성 전에 하기에 await걸었는데
+    // 애초에 1ㄷ1이라서 미리 만들어두었던거임 
   }
 
   async function handleWelcomeSubmit(event) {
@@ -134,7 +135,7 @@ async function getCameras() {
  let memberlist =[] 
  let offerlist=[];
  let is_tutor = false;
- let peerlistconnections = [];
+ let peerlistconnections = []; // 해당 자료형은 쓰이지 않음 # 데모 버전 
  let roomList  = document.getElementById('roomlist');
  
   //#region  connect 후처리 
@@ -188,6 +189,7 @@ async function getCameras() {
   //완료 
   socket.on('user_connect',(sid)=>{
     console.log(`user_connected_room  ${sid}`);
+    _peer_list[sid] = undefined;
     memberlist.push(sid);
   });
   //#endregion
@@ -196,16 +198,19 @@ async function getCameras() {
   socket.on('disconnect',  () => {
     console.log(`disconnect ${socket.id}`);
     console.log('server disconnected')
+
   });
   // 완료
   socket.on('user-disconnect',  (sid) => {
     console.log(`user-disconnect ${socket.id}`);
-    removeSidFromMemberList(sid);
+    removeSidFromMemberList(sid); 
+    delete _peer_list[sid]; // 만약 메모리 누수발생하면 이벤트리스너같은것도 정리해야함
   });
   //완료
   function removeSidFromMemberList(sid) {
     memberlist = memberlist.filter((value) => value !== sid);
   }
+ 
   //완료
   socket.on('roomremove',(nameroom)=>
   {
@@ -234,22 +239,26 @@ async function getCameras() {
 async function makeaddconnection(sid) 
 //#=> offeradd 즉 , offer 주는 클라이언트 추가시 마다 반복 
 {
-  const peerconnection   = new RTCPeerConnection(PC_CONFIG);
+  _peer_list[sid]  = new RTCPeerConnection(PC_CONFIG);
     
-   peerConnectionlist.push(peerconnection);
-   peerconnection.addEventListener("icecandidate", (data)=>
+ 
+  _peer_list[sid].addEventListener("icecandidate", (data)=>
    {
     handleice(data, sid);
   });
    // 등록된 sid 값으로 이벤트 발동됨 
-   peerconnection.addEventListener("track", handleAddStream);
+ 
+   _peer_list[sid].addEventListener("track", (data)=>
+   {
+    handleAddStream(data, sid);
+  });
    //# 상대 peer 에게서 스트림 트랙을받았을때 발생
    //-> 상대가 아래의 코드를실행해줘야 addstream 이벤트가 발생함  
     myStream
    .getTracks()
-   .forEach((track) => peerconnection.addTrack(track, myStream));
+   .forEach((track) =>   _peer_list[sid].addTrack(track, myStream));
    // # 자신의 스트림 트랙을 이 connection 상대에게 전송함
-    return peerconnection;
+    return   _peer_list[sid];
 } 
 // 완료
 function handleice(data,sid){ //해당 setRemoteDescrition을 한 객체를 한 sid 에게 

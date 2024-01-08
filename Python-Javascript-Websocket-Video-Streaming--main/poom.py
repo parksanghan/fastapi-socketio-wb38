@@ -3,7 +3,6 @@ from fastapi import FastAPI ,Cookie, File, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import socketio
-import socket 
 import uvicorn
 from collections import  defaultdict
 import os
