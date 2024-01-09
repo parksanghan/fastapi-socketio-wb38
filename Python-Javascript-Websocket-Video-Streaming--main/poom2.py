@@ -1,5 +1,5 @@
 
-from fastapi import FastAPI ,Cookie, File, UploadFile, Request,Response
+from fastapi import FastAPI ,Cookie, File, UploadFile,APIRouter, Request,Response
 from fastapi.responses import FileResponse,HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -12,6 +12,7 @@ import threading
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import FastAPI, Request, Depends, HTTPException, Cookie
 from fastapi.security import OAuth2PasswordBearer
+from typing import Optional
 app : FastAPI = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -20,11 +21,11 @@ sio : socketio.AsyncServer = socketio.AsyncServer(async_mode='asgi',
                           credits=True,
                            cors_allowed_origins = [
                             
-                           
+                           "*",
                            'http://localhost:5000',
                            'https://admin.socket.io',
                            'http://127.0.0.1:5000'  # 추가: Socket.IO 서버의 주소를 명시]
-                           
+                        
                            ])  
 app.add_middleware( ##
     CORSMiddleware,
@@ -32,6 +33,7 @@ app.add_middleware( ##
         'http://localhost:5000',
         'https://admin.socket.io',
         'http://127.0.0.1:5000'
+       
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -58,23 +60,33 @@ class SessionModel:
         self.name = name
         self.mute_audio = mute_audio
         self.mute_video = mute_video
-@app.get('/')
-async def index(request:Request, response:HTMLResponse):
-    display_name = request.query_params.get('display_name')
-    mute_audio = request.query_params.get('mute_audio')  # 1 or 0
-    mute_video = request.query_params.get('mute_video')  # 1 or 0
-    room_id = request.query_params.get('room_id')
+@app.get('/',response_class=HTMLResponse,name='join')
+def index(request:Request
+          ,room_id:Optional[str]=None,
+          display_name:Optional[str]=None,
+          mute_audio:Optional[int]=None,
+          mute_video:Optional[int]=None
+ 
+            ):
+    # display_name = request.query_params.get('display_name')
+    # mute_audio = request.query_params.get('mute_audio')  # 1 or 0
+    # mute_video = request.query_params.get('mute_video')  # 1 or 0
+    # room_id = request.query_params.get('room_id')
+    sessions[room_id]= {"name": display_name,
+                        "mute_audio": mute_audio, "mute_video": mute_video}
     # 세션에 사용자 정보 저장
-    return templates.TemplateResponse(
-        "join.html",context={"room_id": room_id, "display_name": sessions[room_id].name, "mute_audio": sessions[room_id].mute_audio, "mute_video": sessions[room_id].mute_video})
-@sio.on("connect")
-async def connected(sid,*args, **kwargs):     
-    await sio.emit("connected", list(users_in_room),to=sid) # 접속 시 모든 방에 대한 리스트 줌 방 보기  
+    response =  templates.TemplateResponse(
+        "join.html", {"request": request,"room_id": room_id, "display_name": sessions[room_id]["name"], "mute_audio": sessions[room_id]["mute_audio"], "mute_video": sessions[room_id]["mute_video"]})
+    return response
     
+@sio.on("connect")
+def connected(sid,*args, **kwargs):     
+     # 접속 시 모든 방에 대한 리스트 줌 방 보기  
+     print("New socket connected ", sid)
 @sio.on("join-room")
 def on_join_room(sid,*args, **kwargs):
     room_id = kwargs["room_id"]
-    display_name = sessions[room_id].name
+    display_name = sessions[room_id]["name"]
     
     sio.enter_room(room=room_id,sid=sid)
     rooms_sid[sid] = room_id
@@ -116,7 +128,7 @@ def on_data(sid,*args, **kwargs):
     if kwargs["type"] != "new-ice-candidate":
         print('{} message from {} to {}'.format(
             kwargs["type"], sender_sid, target_sid))
-    socketio.emit('data', kwargs, room=target_sid)
+    sio.emit('data', kwargs, room=target_sid)
  
 
 
