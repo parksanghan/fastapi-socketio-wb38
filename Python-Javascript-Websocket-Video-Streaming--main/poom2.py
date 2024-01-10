@@ -11,7 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import threading 
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import FastAPI, Request, Depends, HTTPException, Cookie
-from fastapi.security import OAuth2PasswordBearer
 from typing import Optional
 app : FastAPI = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -61,11 +60,11 @@ class SessionModel:
         self.mute_audio = mute_audio
         self.mute_video = mute_video
 @app.get('/',response_class=HTMLResponse,name='join')
-def index(request:Request
+async def index(request:Request
           ,room_id:Optional[str]=None,
           display_name:Optional[str]=None,
-          mute_audio:Optional[int]=None,
-          mute_video:Optional[int]=None
+          mute_audio:Optional[str]=None,
+          mute_video:Optional[str]=None
  
             ):
     # display_name = request.query_params.get('display_name')
@@ -75,32 +74,33 @@ def index(request:Request
     sessions[room_id]= {"name": display_name,
                         "mute_audio": mute_audio, "mute_video": mute_video}
     # 세션에 사용자 정보 저장
-    response =  templates.TemplateResponse(
+    response = await templates.TemplateResponse(
         "join.html", {"request": request,"room_id": room_id, "display_name": sessions[room_id]["name"], "mute_audio": sessions[room_id]["mute_audio"], "mute_video": sessions[room_id]["mute_video"]})
     return response
     
 @sio.on("connect")
-def connected(sid,*args, **kwargs):     
+async def connected(sid,*args, **kwargs):     
      # 접속 시 모든 방에 대한 리스트 줌 방 보기  
      print("New socket connected ", sid)
+      
 @sio.on("join-room")
-def on_join_room(sid,*args, **kwargs):
-    room_id = kwargs["room_id"]
+async def on_join_room(sid,data):
+    room_id = data["room_id"]
     display_name = sessions[room_id]["name"]
     
-    sio.enter_room(room=room_id,sid=sid)
+    await sio.enter_room(room=room_id,sid=sid)
     rooms_sid[sid] = room_id
     names_sid[sid] = display_name
     
     print("[{}] New member joined: {}<{}>".format(room_id, display_name, sid))
-    sio.emit("user-connect",{"sid":sid, "name":display_name},room=room_id,skip_sid=sid)
+    await sio.emit("user-connect",{"sid":sid, "name":display_name},room=room_id,skip_sid=sid)
     if room_id not in users_in_room:
         users_in_room[room_id] = [sid]
-        sio.emit("user-list",{"my_id":sid},to=sid)
+        await sio.emit("user-list",{"my_id":sid})
     elif room_id in users_in_room:
         usrlist = {u_id: names_sid[u_id]
                    for u_id in users_in_room[room_id]}
-        sio.emit("user-list", {"list": usrlist, "my_id": sid},to=sid)
+        await sio.emit("user-list", {"list": usrlist, "my_id": sid})
         users_in_room[room_id].append(sid) # 인식안되는데 됨 
       
     print("\nusers: ", users_in_room, "\n")
@@ -110,25 +110,26 @@ async def on_disconnect(sid,*args, **kwargs):
     room_id =  rooms_sid.get(sid)
     display_name =  names_sid.get(sid)
     print("[{}] Member left: {}<{}>".format(room_id, display_name, sid))
-    await sio.emit("user-disconnect",sid, room=room_id)
-    users_in_room[room_id].remove(sid)
+    await sio.emit("user-disconnect",sid, room=room_id,skip_sid=sid)
+    users_in_room[room_id].pop(sid,None)
     if len(users_in_room[room_id]) == 0:
         users_in_room.pop(room_id,None)
     rooms_sid.pop(sid,None)
     names_sid.pop(sid,None)
+    await sio.disconnect(sid=sid)
     print("\nusers: ", users_in_room, "\n")
 
 @sio.on("data")
-def on_data(sid,*args, **kwargs):
-    sender_sid = kwargs['sender_id']
-    target_sid = kwargs['target_id']
+async def on_data(sid,data):
+    sender_sid = data['sender_id']
+    target_sid = data['target_id']
     if sender_sid != sid:
         print("[Not supposed to happen!] request.sid and sender_id don't match!!!")
 
-    if kwargs["type"] != "new-ice-candidate":
+    if data["type"] != "new-ice-candidate":
         print('{} message from {} to {}'.format(
-            kwargs["type"], sender_sid, target_sid))
-    sio.emit('data', kwargs, room=target_sid)
+            data["type"], sender_sid, target_sid))
+    await sio.emit('data', data, room=target_sid)
  
 
 
