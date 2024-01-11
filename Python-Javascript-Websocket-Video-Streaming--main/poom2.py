@@ -53,15 +53,10 @@ rooms_sid = {} # rooms_sid[sid] = room_id
 names_sid = {} # names_sid[sid] = client_name
 sessions = {}# 사용자 정보를 저장할 딕셔너리
 combined_asgi_app = socketio.ASGIApp(sio, app)
-# 사용자 정보를 저장할 모델
-class SessionModel:
-    def __init__(self, name: str, mute_audio: str, mute_video: str):
-        self.name = name
-        self.mute_audio = mute_audio
-        self.mute_video = mute_video
-@app.get('/',response_class=HTMLResponse,name='join')
-async def index(request:Request
-          ,room_id:Optional[str]=None,
+ 
+@app.get('/join',response_class=HTMLResponse,name='join')
+async def index(request:Request,
+          room_id:Optional[str]=None,
           display_name:Optional[str]=None,
           mute_audio:Optional[str]=None,
           mute_video:Optional[str]=None
@@ -74,7 +69,7 @@ async def index(request:Request
     sessions[room_id]= {"name": display_name,
                         "mute_audio": mute_audio, "mute_video": mute_video}
     # 세션에 사용자 정보 저장
-    response = await templates.TemplateResponse(
+    response =   templates.TemplateResponse(
         "join.html", {"request": request,"room_id": room_id, "display_name": sessions[room_id]["name"], "mute_audio": sessions[room_id]["mute_audio"], "mute_video": sessions[room_id]["mute_video"]})
     return response
     
@@ -91,32 +86,37 @@ async def on_join_room(sid,data):
     await sio.enter_room(room=room_id,sid=sid)
     rooms_sid[sid] = room_id
     names_sid[sid] = display_name
-    
+    ####
     print("[{}] New member joined: {}<{}>".format(room_id, display_name, sid))
     await sio.emit("user-connect",{"sid":sid, "name":display_name},room=room_id,skip_sid=sid)
     if room_id not in users_in_room:
         users_in_room[room_id] = [sid]
-        await sio.emit("user-list",{"my_id":sid})
-    elif room_id in users_in_room:
+        await sio.emit("user-list", {"my_id": sid},to=sid)  # send own id only
+    else:
         usrlist = {u_id: names_sid[u_id]
                    for u_id in users_in_room[room_id]}
-        await sio.emit("user-list", {"list": usrlist, "my_id": sid})
+        await sio.emit("user-list", {"list": usrlist, "my_id": sid},to=sid)
+         # add new member to user list maintained on server
         users_in_room[room_id].append(sid) # 인식안되는데 됨 
-      
-    print("\nusers: ", users_in_room, "\n")
+        print("\nusers: ", users_in_room, "\n")
 
 @sio.on("disconnect")
 async def on_disconnect(sid,*args, **kwargs):
     room_id =  rooms_sid.get(sid)
     display_name =  names_sid.get(sid)
+
     print("[{}] Member left: {}<{}>".format(room_id, display_name, sid))
-    await sio.emit("user-disconnect",sid, room=room_id,skip_sid=sid)
+    await sio.emit("user-disconnect",{"sid": sid} 
+                   ,room=room_id,skip_sid=sid)
+
     users_in_room[room_id].pop(sid,None)
     if len(users_in_room[room_id]) == 0:
         users_in_room.pop(room_id,None)
+
     rooms_sid.pop(sid,None)
     names_sid.pop(sid,None)
-    await sio.disconnect(sid=sid)
+    
+    await sio.leave_room(sid=sid,room=room_id)
     print("\nusers: ", users_in_room, "\n")
 
 @sio.on("data")
@@ -129,7 +129,7 @@ async def on_data(sid,data):
     if data["type"] != "new-ice-candidate":
         print('{} message from {} to {}'.format(
             data["type"], sender_sid, target_sid))
-    await sio.emit('data', data, room=target_sid)
+    await sio.emit('data', data, to=target_sid)
  
 
 

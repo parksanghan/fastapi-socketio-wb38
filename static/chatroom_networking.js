@@ -54,6 +54,7 @@ socket.on("user-disconnect", (data)=>{
 socket.on("user-list", (data)=>{
     console.log("user list recvd ", data);
     myID = data["my_id"];
+    console.log("myid",myID);
     if( "list" in data) // not the first to connect to room, existing user list recieved
     {
         let recvd_list = data["list"];  
