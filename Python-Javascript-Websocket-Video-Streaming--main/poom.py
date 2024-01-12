@@ -3,7 +3,6 @@ from fastapi import FastAPI ,Cookie, File, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import socketio
-import socket 
 import uvicorn
 from collections import  defaultdict
 import os
@@ -58,18 +57,26 @@ def get_roommember_list(roomname): # 방 이름 > 리스트(그 방의 모든 �
     return list(rooms[roomname].keys())
 
 #공사중
-def get_room_sid_ice(roomname, sid): #저장된 방에 있는 멤버 sid 에 있는 정보 반환
+def get_room_sid_offer(roomname, sid): #저장된 방에 있는 멤버 sid 에 있는 정보 반환
     if sid in get_roommember_list(roomname):
         return rooms[roomname][sid]
     else:
         return None
 
 def get_roomname_by_sid(sid):   # 참여자 ID > 참여중인 방 이름 
-    return sid_2_rooms[sid]
+    return sid_2_rooms.get(sid)
+
+def get_all_offers(roomname): # sid 는 offer 와 매핑 되어 있음 room[roomname][sid] = offfer 
+    if len([inner_dict.values() for inner_dict in rooms.get(roomname)]):
+        all_values = [value for inner_dict in rooms.values() for value in inner_dict.values()]  # 수정된 부분
+        return all_values
+    else:
+        return None
 
 #==============================set============================================
-def save_offer_in_room(sid , offer): # 참여자 아이디에 해당하는 참여자 정보 저장
-    rooms[sid_2_rooms[sid]][sid] = offer
+def save_user_offer(sid , offer): # 참여자 아이디에 해당하는 참여자 정보 저장
+    if sid in get_roommember_list(sid_2_rooms.get(sid)):
+        rooms[sid_2_rooms[sid]][sid] = offer
 
 #==============================control=============================================
 
@@ -81,7 +88,7 @@ def remove_user_from_room(roomname, sid): # 방이름으로 방 안의 참여자
     if not sid in room :
         return False
     
-    del room[sid]
+    rooms[roomname].pop(sid,None)
     return True
  
 
@@ -92,7 +99,7 @@ async def index():
 
 @sio.on('connect')
 async def connected(sid,*args, **kwargs):     
-    await sio.emit("fuckshit", list(rooms),to=sid) # 접속 시 모든 방에 대한 리스트 줌 방 보기  
+    await sio.emit("connected", list(rooms),to=sid) # 접속 시 모든 방에 대한 리스트 줌 방 보기  
     
     
 @sio.on('join_room')
@@ -105,12 +112,12 @@ def joinroom(sid,*args, **kwargs): #1 인자 : 방이름
         sio.emit('roomadd',roomName) 
         tutors.append(sid)
     else : # 있는 방이라면 방유저들에게 연결 이벤트 처리 
-        sio.emit('user-connect', sid, room=roomName) # 기존 유저들이 sid 를 추가 하기 위한  자들어올때 방이름 받고   방에 없으면 안감
+        sio.emit('user_connect', sid, room=roomName) # 기존 유저들이 sid 를 추가 하기 위한  자들어올때 방이름 받고   방에 없으면 안감
     
     # [후처리]
     # 해당 방안에 있는 리스트 모든 클라이언트 리스트 
     # 함수내부 있으면 방 리스트 리턴 없으면 생성 후 공백배열 리턴 
-    sio.emit('connected', get_roommember_list(roomName), to = sid) 
+    sio.emit('roomconnected', get_roommember_list(roomName), to = sid) 
     # 초대장?  추가 (rooms[방이름][sid번호] =  클라이언트 정보 )
     rooms[roomName][sid] = None 
     # sid  to  room 추가 (sid 를 통한 방이름 추출 ) 
@@ -143,8 +150,9 @@ def disconnected(sid,*args, **kwargs) :
     # roomname이 없어도 해준데요~
     rooms[roomname].pop(sid,None)
     sid_2_rooms.pop(sid,None)
-    #sid_2_tutor.pop(sid,None)
-           
+    if sid in tutors: 
+        tutors.remove(sid) # 교수가 나갓을때 ai 서버와 통신하여 트레이닝 시작
+        # 리스트는 팝이안됨 
     #if sid  in get_roommember_list(args[0]):
     #    sio.leave_room(sid=sid , room=sid_2_rooms) # 나간사람 연결 강퇴
     # socketio 에서는 연결  끊길시 해당 방 나가게 자동으로 처리 
@@ -160,20 +168,18 @@ def disconnected(sid,*args, **kwargs) :
 # send offer   - > send answer 
 # candidate   -> candidate 
 #offer 는 서버가 필요한 이유는 offer를 주고 받기 위함
-@sio.on('offer')
-def offer(sid,*args, **kwargs):
+@sio.on('offer')    
+async def offer(sid,*args, **kwargs):
     offer  = args[0]  # 클라이언트에서 받아온  offer
-    roomname   = args[1]  # 방이름  
-    data  = args[2]
-    rooms[roomname][sid]
-    if sid in tutors: # 튜터인 경우  
-        with file_lock:
-            with open(f'{sid}.wav', 'ab') as f: #서버에서 저장할 폴더에 이제 sid 이름으로 이게 첫 유저면 저장 
-                f.write(data)
-                
-    #save_rooms_info[roomname][sid] = offer #  sid 에 따른 offer 할당 바인딩 필요시사용
-    sio.emit('offer',offer,room=roomname) #해당 방에 있는 사람들에게  필요하다면 offerlist로 주기 
-    
+    roomname   = sid_2_rooms.get(sid)  # 방이름 
+    sio.emit('offer',get_room_sid_offer(roomname),get_roommember_list(roomname),to=sid) 
+    # offer를 발생시킨 sid 에게 현재 저장되어 있는 offer 리스트 반환 
+    # get_roommember_list 반환추가 -> get_all_offers 와 get_roommember_list 해당 함수들이 인덱스값을 공유하므로 
+    # offer 할당 시 콜백으로 해당 객체의 주인인 sid를 보내 icecandidate 를 보내기 위함
+    save_user_offer(roomname,sid,offer)# 자신을 제외하고 전달하기 위해 이벤트 후 저장
+    sio.emit('offeradd',offer, sid,room=roomname,skip_sid=sid) # 현재 접속된 방에서의 사람들은 해당 offer 만 받고 리스트에 추가
+    # sid 추가 -> offer 와 그 정보를 주인인 sid 도 보냄
+    #근데 이미 방에는 들어 있어서 sid 제외 해줘야 함
 
 # 클라이언트 측 :
 # 자신의 offer 생성
@@ -188,22 +194,36 @@ def offer(sid,*args, **kwargs):
 
 #  클라에서도 또 socket.on('offer') 이벤트 받고 peer to peer 연결 처리 
 
-
-@sio.on('answer')
-def answer(sid,*args, **kwargs):
-    answer= args[0]
-    roomname = args[1]
-    sio.emit('answer',answer,room= roomname)
-
-sio.on('ice')
+ 
+sio.on('ice')  # offer를 받고 해당 offer를 
 def ice(sid, *args, **kwargs):
     ice  = args[0]
-    roomname = args[1]
-    sio.emit('ice',ice,room=roomname)
-    
-@sio.on('roomchange') # 필요하다면 구현 
-async def roomchanged(sid,*args, **kwargs):
-    return "D"
+    targetsid = args[1]
+    roomname=sid_2_rooms.get(targetsid)
+    if targetsid in get_roommember_list(roomname):
+         sio.emit('ice',ice,sid,to=targetsid)
+
+
+sio.on('iceanswer')# ice 이벤트로만으로도 처리가 잘되면 필요없음 
+def icecallback(sid ,*args, **kwargs):
+    ice = args[0]
+    targetsid  = args[1]
+    roomname=sid_2_rooms.get(targetsid)
+    if targetsid in get_roommember_list(roomname):
+        sio.emit('iceanswer',ice,sid,to=targetsid)
+
+@sio.on('sendtext')
+async def sendwav(sid,*args, **kwargs):# 10초마다 음성파일 줘
+    text = args[0]
+    roomanedir  = sid_2_rooms(sid)
+    filename = sid
+    if sid in tutors: # 튜터인 경우  
+        with file_lock:
+            directory_path = os.path.join(os.getcwd(), roomanedir)
+            os.makedirs(directory_path, exist_ok=True)
+            file_path = os.path.join(directory_path, f"{filename}.txt")
+            with open(file_path, 'ab') as f: #서버에서 저장할 폴더에 이제 sid 이름으로 이게 첫 유저면 저장 
+               await f.write(text)
 
 
 if __name__ == '__main__':
