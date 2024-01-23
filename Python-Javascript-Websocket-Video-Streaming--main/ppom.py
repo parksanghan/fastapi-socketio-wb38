@@ -4,10 +4,22 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import socketio
 import socket 
+import numpy as np
+import base64
 import uvicorn
+import io 
+import asyncio
+import soundfile
+import ffmpeg 
+import aiofiles
+import wave
+from pydub import AudioSegment
 from collections import  defaultdict,UserDict,OrderedDict
 import os
 import threading 
+import dddd3
+
+ 
 app = FastAPI()
 app.mount('/static', StaticFiles(directory='static'), name='static')
  # (admin)
@@ -96,14 +108,226 @@ def remove_user_from_room( roomname, sid):
 @app.get('/')
 async def index():
     
-    return FileResponse('fiddle.html')
+    return FileResponse('codecfile.html')
  
 @sio.on('connect')
 async def coonnected(sid,*args, **kwargs):     
  
     await sio.emit("connected", get_room_list(),to=sid) # 접속 시 모든 방에 대한 리스트 줌 방 보기  
+
+lock_threading = {} # 같을파일에 대해서 접근시 lock 걸고 다른 파일에 대해서는 새로운 쓰레드를 통해 제어 
+# @sio.on('voice')
+# async def handle_voice(sid,data): # blob 으로 들어온 데이터 
+#    await control_voice(sid,data) 
+#    #asyncio.run(control_voice(sid,data)) #정상 수행
+
+# async def control_voice(sid,data):
+#     try:
+#      # BytesIO를 사용하여 메모리 상에서 오디오 데이터를 로드
+#         audio_segment:AudioSegment = AudioSegment.from_file(io.BytesIO(data), format="webm")
+#     #audio_segment = AudioSegment.from_file()
+#     # 오디오 파일로 저장
+#         directory = str("dddd")
+#         if not os.path.exists(directory):
+#             os.makedirs(directory)
+#         file_path = os.path.join(directory, f'{sid}.wav')
+#         file_chunk_path = os.path.join(directory, f'{sid}chunk.wav')
+#     # 오디오 파일로 저장
+#     # 아래의 파일저장부분 
+#         if not os.path.exists(file_path): # 처음 보낸 chunk 의 경우 
+#             async with await get_file_lock(file_path=file_path): # 파일을 통한 딕셔너리로 lock 형태 지정
+#                 audio_segment.export(file_path, format='wav')
+#                 #await write_wav_func(file_path,audio_segment) # lock은 코드블럭을 나가면 해제 
+
+#         else:                             # 처음 이외에 보내는 chunk의 경우 .wav 파일에 대한 합성 
+#         #audio_segment.export(file_chunk_path,format='wav')
+#             async with await get_file_lock(file_path=file_chunk_path):
+#                 audio_segment.export(file_path, format='wav')
+#                 # 파일 쓰기가 완료 된 뒤에 파일 합치기
+#                 handle_audio_chunk(directory,filepath=file_path,chukpath=file_chunk_path)
+#         print('오디오{sid} 파일 저장 완료')
+#     except Exception as esl:
+#         print(esl,sid,"파일 처리 중 에러 발생")
+        
+        
+# # 아래함수를 쓰레드 함수로 만들가 
+# async def handle_audio_chunk(directory,filepath,chukpath):
     
+#     infiles = [filepath,
+#                 chukpath]
+#     outfile =  os.path.join(directory, "reuslt_"+filepath) 
+
+
+#     data= []
+#     for infile in infiles:
+#         w = wave.open(os.getcwd()+'\\'+infile, 'rb')
+#         data.append([w.getparams(), w.readframes(w.getnframes())])
+#         w.close()
     
+#     output = wave.open(outfile, 'wb')
+
+#     output.setparams(data[0][0])
+
+#     for i in range(len(data)):
+#         output.writeframes(data[i][1])
+#     output.close()
+
+# async def get_file_lock(file_path):
+#     if file_path not in lock_threading:        
+#         lock_threading[file_path] = asyncio.Lock()
+#     return lock_threading[file_path]
+
+# async def write_wav_func(file_path, audio_segment:AudioSegment):
+   
+#     task= asyncio.create_task(write_file(file_path, ad=audio_segment))
+    
+#     # 작업이 완료되면 콜백 호출
+#     task.add_done_callback(lambda fut: file_write_callback(fut))
+
+# async def write_file(file_path, ad:AudioSegment):
+
+#     async with aiofiles.open(file_path, 'wb') as file:
+#         await file.write(ad.raw_data)
+
+# def file_write_callback(future):
+#     # 파일 쓰기 작업이 완료되면 실행되는 콜백 함수
+#     if future.exception() is not None:
+#         print(f"파일 쓰기 중 에러 발생: {future.exception()}")
+#     else:
+#         print("파일 쓰기 완료")
+
+
+async def get_file_lock(file_path):
+    if file_path not in lock_threading:        
+        lock_threading[file_path] = asyncio.Lock()
+    return lock_threading[file_path]
+
+
+@sio.on('voice')
+async def voice_received(sid,data):
+    task = asyncio.create_task(handle_voice(sid,data))
+ 
+    # reuslt =task.result()
+    # task.add_done_callback(handle_audio_chunk(reuslt[0],reuslt[1]))
+
+
+ 
+
+
+
+
+
+async def handle_voice(sid,data): # blob 으로 들어온 데이터 
+    # BytesIO를 사용하여 메모리 상에서 오디오 데이터를 로드
+  
+    #audio_segment = AudioSegment.from_file()
+    # 오디오 파일로 저장
+    directory = str("dddd")
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    file_path = os.path.join(directory, f'{sid}.wav')
+    file_chunk_path = os.path.join(directory,f'{sid}chunk.wav')
+    # 오디오 파일로 저장
+    # 아래의 파일저장부분 
+    if not os.path.exists(file_path): # 처음 보낸 chunk 의 경우 
+       async with await get_file_lock(file_path=file_path):
+        audio_segment:AudioSegment = AudioSegment.from_file(io.BytesIO(data), format="webm")
+        audio_segment.export(file_path,format='wav')
+       #await write_file(file_path=file_path, audio_segment=audio_segment)
+    else:                             # 처음 이외에 보내는 chunk의 경우 .wav 파일에 대한 합성
+        async with await get_file_lock(file_path=file_path):
+            audio_segment:AudioSegment = AudioSegment.from_file(io.BytesIO(data), format="webm")
+            audio_segment.export(file_chunk_path,format='wav')
+       
+            await handle_audio_chunk(file_path,file_chunk_path)
+        # data= []
+        # for infile in infiles:
+        #     w = wave.open(os.getcwd()+'/'+infile, 'rb')
+        #     data.append([w.getparams(), w.readframes(w.getnframes())])
+        #     w.close()
+    
+        # output = wave.open(outfile, 'wb')
+
+        # output.setparams(data[0][0])
+
+        # for i in range(len(data)):
+        #     output.writeframes(data[i][1])
+        #     print("쓰기 진행중")
+        # print("쓰기 완료")
+        # output.close()
+
+         
+        
+    print('오디오 파일 저장 완료')
+# 아래함수를 쓰레드 함수로 만들가 
+async def handle_audio_chunk(filepath,chukpath):
+    
+    infiles = [ filepath,
+                chukpath]
+    outfile = os.path.join(filepath) 
+
+
+    data= []
+    for infile in infiles:
+        w = wave.open(os.getcwd()+'/'+infile, 'rb')
+        data.append([w.getparams(), w.readframes(w.getnframes())])
+        w.close()
+    
+    output = wave.open(outfile, 'wb')
+
+    output.setparams(data[0][0])
+
+    for i in range(len(data)):
+        output.writeframes(data[i][1])
+    output.close()
+
+# async def write_file(file_path,audio_segment:AudioSegment):
+#     async with aiofiles.open(file_path,'wb')as file:
+#         await file.write(audio_segment.raw_data)
+
+
+# @sio.on('voice')
+# async def handle_voice(sid,data): # blob 으로 들어온 데이터 
+#     # BytesIO를 사용하여 메모리 상에서 오디오 데이터를 로드
+#     audio_segment:AudioSegment = AudioSegment.from_file(io.BytesIO(data), format="webm")
+#     #audio_segment = AudioSegment.from_file()
+#     # 오디오 파일로 저장
+#     directory = str("dddd")
+#     if not os.path.exists(directory):
+#         os.makedirs(directory)
+#     file_path = os.path.join(directory, f'{sid}.wav')
+#     file_chunk_path = os.path.join(directory,f'{sid}chunk.wav')
+#     # 오디오 파일로 저장
+#     # 아래의 파일저장부분 
+#     if not os.path.exists(file_path): # 처음 보낸 chunk 의 경우 
+#         audio_segment.export(file_path, format='wav')
+#     else:                             # 처음 이외에 보내는 chunk의 경우 .wav 파일에 대한 합성 
+#         audio_segment.export(file_chunk_path,format='wav')
+#         await handle_audio_chunk(directory,file_path,file_chunk_path)
+    
+# #아래함수를 쓰레드 함수로 만들가 
+# async def handle_audio_chunk(directory,filepath,chukpath):
+    
+#     infiles = ['\\' + filepath,
+#                 '\\'+chukpath]
+#     outfile = ['\\'+filepath]
+
+
+#     data= []
+#     for infile in infiles:
+#         w = wave.open(os.getcwd()+'/'+infile, 'rb')
+#         data.append([w.getparams(), w.readframes(w.getnframes())])
+#         w.close()
+    
+#     output = wave.open(outfile, 'wb')
+
+#     output.setparams(data[0][0])
+
+#     for i in range(len(data)):
+#         output.writeframes(data[i][1])
+#     output.close()
+ 
+ 
 @sio.on('join_room')
 def joinroom(sid,*args, **kwargs): #1 인자 : 방이름 , #2인자 자료 없음
     if args[0] not in get_room_list(): # 없는 방이라면 생성되니 add 이벤트 
@@ -111,7 +335,7 @@ def joinroom(sid,*args, **kwargs): #1 인자 : 방이름 , #2인자 자료 없�
         sid_2_tutor.append(sid)
         sio.emit('istutor',to=sid) # 첫유저일때 해당 sid 에게 튜터임을 이벤트 전송
     if args[0] in get_room_list(): # 있는 방이라면 방유저들에게 연결 이벤트 처리 
-        sio.emit('user_connect', sid, room=args[0]) # 기존 유저들이 sid 를 추가 하기 위한  자들어올때 방이름 받고   방에 없으면 안감
+        sio.emit('user_connect', sid, room=args[0]) # 기존 유저들이 sid 를 추가           하기 위한  자들어올때 방이름 받고   방에 없으면 안감
         
     sio.emit('roomconnected',get_roommember_list(args[0]), to= sid) # 해당 방안에 있는 리스트 모든 클라이언트 리스트  # 함수내부 있으면 방 리스트 리턴 없으면 생성 후 공백배열 리턴 
     rooms[args[0]][sid] = None # 초대장?  추가 (rooms[방이름][sid번호] =  클라이언트 정보 )
