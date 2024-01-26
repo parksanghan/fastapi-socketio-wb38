@@ -18,7 +18,7 @@ from collections import  defaultdict,UserDict,OrderedDict
 import os
 import threading 
 import dddd3
-
+import ssl
  
 app = FastAPI()
 app.mount('/static', StaticFiles(directory='static'), name='static')
@@ -41,8 +41,8 @@ sio.instrument(
                      )
  
 
- #WB38                           your_password
-
+# ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+# ssl_context.load_cert_chain('/path/to/cert.pem', keyfile='/path/to/key.pem')
 combined_asgi_app = socketio.ASGIApp(sio, app)
 manager = sio.manager
 #clientsocket = socket.socket(socket.AF_INET ,socket.SOCK_STREAM)
@@ -115,7 +115,7 @@ async def coonnected(sid,*args, **kwargs):
  
     await sio.emit("connected", get_room_list(),to=sid) # 접속 시 모든 방에 대한 리스트 줌 방 보기  
 
-lock_threading = {} # 같을파일에 대해서 접근시 lock 걸고 다른 파일에 대해서는 새로운 쓰레드를 통해 제어 
+  # 같을파일에 대해서 접근시 lock 걸고 다른 파일에 대해서는 새로운 쓰레드를 통해 제어 
 # @sio.on('voice')
 # async def handle_voice(sid,data): # blob 으로 들어온 데이터 
 #    await control_voice(sid,data) 
@@ -196,7 +196,7 @@ lock_threading = {} # 같을파일에 대해서 접근시 lock 걸고 다른 파
 #     else:
 #         print("파일 쓰기 완료")
 
-
+lock_threading = {}
 async def get_file_lock(file_path):
     if file_path not in lock_threading:        
         lock_threading[file_path] = asyncio.Lock()
@@ -206,17 +206,6 @@ async def get_file_lock(file_path):
 @sio.on('voice')
 async def voice_received(sid,data):
     task = asyncio.create_task(handle_voice(sid,data))
- 
-    # reuslt =task.result()
-    # task.add_done_callback(handle_audio_chunk(reuslt[0],reuslt[1]))
-
-
- 
-
-
-
-
-
 async def handle_voice(sid,data): # blob 으로 들어온 데이터 
     # BytesIO를 사용하여 메모리 상에서 오디오 데이터를 로드
   
@@ -230,34 +219,25 @@ async def handle_voice(sid,data): # blob 으로 들어온 데이터
     # 오디오 파일로 저장
     # 아래의 파일저장부분 
     if not os.path.exists(file_path): # 처음 보낸 chunk 의 경우 
-       async with await get_file_lock(file_path=file_path):
-        audio_segment:AudioSegment = AudioSegment.from_file(io.BytesIO(data), format="webm")
-        audio_segment.export(file_path,format='wav')
+       async with await get_file_lock(file_path=file_path): #
+        loop =  asyncio.get_event_loop()
+        audio_segment:AudioSegment =await loop.run_in_executor
+        (None, AudioSegment.from_file, io.BytesIO(data), "webm")
+        loop.run_in_executor(None,audio_segment.export,file_path,format='wav')
+        #audio_segment:AudioSegment =
+        #  AudioSegment.from_file(io.BytesIO(data), format="webm")
+        #audio_segment.export(file_path,format='wav')
        #await write_file(file_path=file_path, audio_segment=audio_segment)
     else:                             # 처음 이외에 보내는 chunk의 경우 .wav 파일에 대한 합성
         async with await get_file_lock(file_path=file_path):
-            audio_segment:AudioSegment = AudioSegment.from_file(io.BytesIO(data), format="webm")
-            audio_segment.export(file_chunk_path,format='wav')
-       
-            await handle_audio_chunk(file_path,file_chunk_path)
-        # data= []
-        # for infile in infiles:
-        #     w = wave.open(os.getcwd()+'/'+infile, 'rb')
-        #     data.append([w.getparams(), w.readframes(w.getnframes())])
-        #     w.close()
-    
-        # output = wave.open(outfile, 'wb')
-
-        # output.setparams(data[0][0])
-
-        # for i in range(len(data)):
-        #     output.writeframes(data[i][1])
-        #     print("쓰기 진행중")
-        # print("쓰기 완료")
-        # output.close()
-
-         
-        
+            loop =  asyncio.get_event_loop()
+            audio_segment:AudioSegment =await loop.run_in_executor
+            (None, AudioSegment.from_file, io.BytesIO(data), "webm")
+            #audio_segment:AudioSegment = 
+            #AudioSegment.from_file(io.BytesIO(data), format="webm")
+            audio_segment.export(file_path,format='wav')
+            loop.run_in_executor(None,audio_segment.export,file_path,format='wav') 
+            await handle_audio_chunk(file_path,file_chunk_path)  
     print('오디오 파일 저장 완료')
 # 아래함수를 쓰레드 함수로 만들가 
 async def handle_audio_chunk(filepath,chukpath):
@@ -265,23 +245,18 @@ async def handle_audio_chunk(filepath,chukpath):
     infiles = [ filepath,
                 chukpath]
     outfile = os.path.join(filepath) 
-
-
     data= []
     for infile in infiles:
-        w = wave.open(os.getcwd()+'/'+infile, 'rb')
+        w = wave.open(os.getcwd()+'/'+infile, 'rb') #  동기 
         data.append([w.getparams(), w.readframes(w.getnframes())])
         w.close()
-    
-    output = wave.open(outfile, 'wb')
-
+    output = wave.open(outfile, 'wb')#동기 
     output.setparams(data[0][0])
-
     for i in range(len(data)):
         output.writeframes(data[i][1])
     output.close()
 
-# async def write_file(file_path,audio_segment:AudioSegment):
+# async def write_  file(file_path,audio_segment:AudioSegment):
 #     async with aiofiles.open(file_path,'wb')as file:
 #         await file.write(audio_segment.raw_data)
 
@@ -601,4 +576,5 @@ async def sendwav(sid,*args, **kwargs):# 10초마다 음성파일 줘
     
 if __name__ == '__main__':
 
-    uvicorn.run(combined_asgi_app, host='127.0.0.1', port=5000)
+    uvicorn.run(combined_asgi_app, host='127.0.0.1', port=5000  #, ssl= ssl_context
+              )

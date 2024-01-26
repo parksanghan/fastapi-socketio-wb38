@@ -26,6 +26,10 @@
   socket.on('fuckshit', (a) => {
     console.log(a);
   });
+  socket.on('chatbot_',(data)=>{
+    console.log("DDDDD");
+    console.log(data);
+  });
 
 
 })();

@@ -13,6 +13,9 @@
     <button id="stop">정지</button>
     <div id="sound-clips"></div>
     <script>
+            socket.on("dddd", function() {
+            console.log("DDD");
+        });
         var socket = io('http://127.0.0.1:5000');
         const record = document.getElementById("record")
         const stop = document.getElementById("stop")
@@ -61,7 +64,7 @@
                     }
                     
                     record.onclick = () => {
-                        mediaRecorder.start()
+                        mediaRecorder.start(1000)
                         console.log(mediaRecorder.state)
                         console.log("recorder started")
                         record.style.background = "red"
@@ -111,10 +114,15 @@
                             evtTgt  .parentNode.parentNode.removeChild(evtTgt.parentNode)
                         }
                     }
+                    socket.on('dddd', function()  {
+                        console.log('dddd data received from server:');
+                        // 여기에 서버에서 받은 데이터를 처리하는 코드 추가
+                        // 예를 들어, 받은 데이터를 화면에 표시하거나 다른 작업을 수행할 수 있습니다.
+                    });
 
                   mediaRecorder.ondataavailable = e=> {
                     chunks.push(e.data)
-                    if (chunks.length >= 700)
+                    if (chunks.length >= 60)
                     {
                         sendData(this.chunks)
                         chunks = []
@@ -128,6 +136,8 @@
                 .catch(err => {
                     console.log('The following error occurred: ' + err)
                 })
+
         }
+ 
     </script>
 </body></html>`

@@ -61,7 +61,7 @@
                     }
                     
                     record.onclick = () => {
-                        mediaRecorder.start()
+                        mediaRecorder.start(1000)
                         console.log(mediaRecorder.state)
                         console.log("recorder started")
                         record.style.background = "red"
@@ -113,12 +113,13 @@
                         }
                     }
 
-                  mediaRecorder.ondataavailable = e=> {
+                  mediaRecorder.ondataavailable = function(e) {
                     chunks.push(e.data)
-                    if (chunks.length >= 700)
+                    if (chunks.length >= 5)
                     {
-                        sendData(this.chunks)
-                        console.log('chunk is sent')
+                        const bloddb = new Blob(chunks, { 'type' : 'audio/wav' })
+                        socket.emit('voice', bloddb)
+                         
                         chunks = []
                     }
                     mediaRecorder.sendData = function(buffer) {
