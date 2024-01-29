@@ -1,0 +1,225 @@
+ 
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!-- Basic -->
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!-- Mobile Metas -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+  <!-- Site Metas -->
+  <meta name="keywords" content="" />
+  <meta name="description" content="" />
+  <meta name="author" content="" />
+
+  <title>CHAIR</title>
+
+  <!-- slider stylesheet -->
+  <link rel="stylesheet" type="text/css"
+    href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.carousel.min.css" />
+
+  <!-- bootstrap core css -->
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.css" />
+
+  <!-- fonts style -->
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Poppins:400,700&display=swap" rel="stylesheet">
+  <!-- Custom styles for this template -->
+  <link href="css/style.css" rel="stylesheet" />
+  <!-- responsive style -->
+  <link href="css/responsive.css" rel="stylesheet" />
+
+  <style>
+    #controls {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    #controls label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #controls label span {
+      display: inline-block;
+      width: 150px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="hero_area">
+    <!-- header section strats -->
+    <header class="header_section">
+      <div class="container-fluid">
+        <nav class="navbar navbar-expand-lg custom_nav-container pt-3">
+          <a class="navbar-brand" href="index.html">
+            <span>
+              CHAIR
+            </span>
+          </a>
+          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+
+          <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <div class="d-flex ml-auto flex-column flex-lg-row align-items-center">
+              <div class="user_option">
+                <a href="">
+                  <img src="images/user.png" alt="">
+                </a>
+                <form class="form-inline my-2 my-lg-0 ml-0 ml-lg-4 mb-3 mb-lg-0">
+                  <button class="btn  my-2 my-sm-0 nav_search-btn" type="submit"></button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </header>
+    <!-- end header section -->
+    <!-- slider section -->
+    <section class=" slider_section position-relative">
+      <div class="container">
+        <div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel">
+          <ol class="carousel-indicators">
+            <li data-target="#carouselExampleIndicators" data-slide-to="0" class="active"></li>
+            <li data-target="#carouselExampleIndicators" data-slide-to="1"></li>
+            <li data-target="#carouselExampleIndicators" data-slide-to="2"></li>
+          </ol>
+          <div class="carousel-inner">
+            <div class="carousel-item active">
+              <div class="row">
+                <div class="col">
+                  <div class="detail-box">
+                    <div>
+                      <h2>
+                        welcome to
+                      </h2>
+                      <h1>
+                        CHAIR
+                      </h1>
+                      <p>
+                        Experience real-time screen sharing lectures with this function.
+                      </p>
+                      <div class="nav-link">
+                        <!-- 'Let's Go!' 버튼 클릭시 redirectToJoin 함수를 호출하도록 변경 -->
+                        <button onclick="redirectToJoin()">Let's Go!</button>
+			<script type="text/javascript">
+				function redirectToJoin() {
+    				// 입력된 값을 가져옵니다.
+    					var room_id = document.getElementById('room_id').value;
+    					var display_name = document.getElementById('display_name').value;
+   					var mute_audio = document.getElementById('mute_audio').checked;
+    					var mute_video = document.getElementById('mute_video').checked;
+
+    					// URL을 생성합니다.
+   					 var url = "http://127.0.0.1:5000/join?";
+   					url += "room_id=" + encodeURIComponent(room_id);
+    					url += "&display_name=" + encodeURIComponent(display_name);
+    					url += "&mute_audio=" + (mute_audio ? "1" : "0");
+   					url += "&mute_video=" + (mute_video ? "1" : "0");
+
+    					// 생성된 URL로 이동합니다.
+    					window.location.href = url;
+ 				 }
+			</script>
+                      </div>
+                      <div id="controls">
+                        <label for="room_id"><span>Room ID:</span>
+                          <input type="text" id="room_id">
+                        </label>
+                        <label for="display_name"><span>Display Name:</span>
+                          <input type="text" id="display_name">
+                        </label>
+                        <label for="mute_audio"><span>Mute Audio:</span>
+                          <input type="checkbox" id="mute_audio">
+                        </label>
+                        <label for="mute_video"><span>Mute Video:</span>
+                          <input type="checkbox" id="mute_video">
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+    </section>
+    <!-- end slider section -->
+  </div>
+
+  <!-- info section -->
+  <section class="info_section ">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-3">
+          <div class="info_contact">
+            <h5>
+              About Shop
+            </h5>
+            <div>
+              <div class="img-box">
+                <img src="images/location-white.png" width="18px" alt="">
+              </div>
+              <p>
+                Address
+              </p>
+            </div>
+            <div>
+              <div class="img-box">
+                <img src="images/telephone-white.png" width="12px" alt="">
+              </div>
+              <p>
+                +01 1234567890
+              </p>
+            </div>
+            <div>
+              <div class="img-box">
+                <img src="images/envelope-white.png" width="18px" alt="">
+              </div>
+              <p>
+                demo@gmail.com
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="info_info">
+            <h5>
+              Informations
+            </h5>
+            <p>
+              ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
+            </p>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="info_insta">
+            <h5>
+              Instagram
+            </h5>
+            <div class="insta_container">
+              <div>
+                <a href="">
+                  <div class="insta-box b-1">
+                    <img src="images/insta.png" alt="">
+                  </div>
+                </a>
+                <a href="">
+                  <div class="insta-box b-2">
+                    <img src="images/insta.png" alt="">
+                  </div>
+                </a>
+              </div>
+
+              <div>
+                <a href="">
+                  <div class="insta-box b-3">
+                    <img src="images/insta

@@ -33,6 +33,8 @@ function startCamera()
     });
 }
 
+
+
 socket.on("connect", ()=>{
     console.log("socket connected....");
     console.log(myRoomID);

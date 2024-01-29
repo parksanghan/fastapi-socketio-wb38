@@ -235,18 +235,19 @@ async def handle_voice(sid,data): # blob 으로 들어온 데이터
             (None, AudioSegment.from_file, io.BytesIO(data), "webm")
             #audio_segment:AudioSegment = 
             #AudioSegment.from_file(io.BytesIO(data), format="webm")
-            audio_segment.export(file_path,format='wav')
-            loop.run_in_executor(None,audio_segment.export,file_path,format='wav') 
-            await handle_audio_chunk(file_path,file_chunk_path)  
+            #audio_segment.export(file_path,format='wav')
+            loop.run_in_executor(None,audio_segment.export,file_chunk_path,format='wav') 
+            loop.run_in_executor(None,handle_audio_chunk,file_path,file_chunk_path)  
     print('오디오 파일 저장 완료')
-# 아래함수를 쓰레드 함수로 만들가 
-async def handle_audio_chunk(filepath,chukpath):
+# 아래함수를 쓰레드 함수로 만들가 async
+def handle_audio_chunk(filepath,chukpath):
     
     infiles = [ filepath,
                 chukpath]
     outfile = os.path.join(filepath) 
     data= []
     for infile in infiles:
+
         w = wave.open(os.getcwd()+'/'+infile, 'rb') #  동기 
         data.append([w.getparams(), w.readframes(w.getnframes())])
         w.close()

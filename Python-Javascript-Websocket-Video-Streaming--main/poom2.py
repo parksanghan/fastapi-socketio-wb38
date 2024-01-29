@@ -25,7 +25,16 @@ import os, threading, time, subprocess
  
  
 app : FastAPI = FastAPI()
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
+# 이미지 파일 제공
+app.mount("/images", StaticFiles(directory="images"), name="images")
+
+# CSS 파일 제공
+app.mount("/css", StaticFiles(directory="css"), name="css")
+
+# JavaScript 파일 제공
+app.mount("/js", StaticFiles(directory="js"), name="js")
 templates = Jinja2Templates(directory="templates")
 # 비동기 서버 생성
 sio : socketio.AsyncServer = socketio.AsyncServer(async_mode='asgi',  
@@ -37,6 +46,7 @@ sio : socketio.AsyncServer = socketio.AsyncServer(async_mode='asgi',
                            'https://admin.socket.io',
                            'http://127.0.0.1:5000'  # 추가: Socket.IO 서버의 주소를 명시]
                         
+
                            ])  
 app.add_middleware( ##
     CORSMiddleware,
@@ -71,16 +81,14 @@ combined_asgi_app = socketio.ASGIApp(sio, app)
 @app.get('/')
 async def index():
  
-  
-    return FileResponse('fiddle.html')
-
+    # 여기서 이제 처음 진입점 
+    return FileResponse("index.html")
 @app.get('/rr')
-async def inindex():
- 
-    return FileResponse('codecfile.html')
- 
+async def iindex():
+    return FileResponse("codecfile.html")
+ # 처음진입점에서 이제 socketio 연동 및 전체 ui 제공
 @app.get('/join',response_class=HTMLResponse,name='join')
-async def index(request:Request,
+async def indexes(request:Request,
           room_id:Optional[str]=None,
           display_name:Optional[str]=None,
           mute_audio:Optional[str]=None,
@@ -100,43 +108,53 @@ async def index(request:Request,
     return response
 
 
-@app.post("/upload")
+@app.post("/upload/{sid}") # sid 를 검사해야함 
 async def upload_file(sid,file: UploadFile = File(...)):
     # 파일 확장자 확인
+    ##if is_turtor.get(sid):# 나중에 후처리 
     directory = "upload"
     file_ext = file.filename.split(".")[-1].lower()
     if not os.path.exists(directory):
         os.makedirs(directory)
     # 파일 확장자가 txt 또는 pdf인지 확인
   
-    if file_ext == "txt":
+    if file_ext == "txt": # txt 는 그대로 저장 
         filepath = os.path.join(directory,f'{sid}.wav')
         task = asyncio.create_task(save_uploaded_file(file,filepath))
         task.add_done_callback(callback_with_txt(rooms_sid.get(sid),filepath))
-    elif file_ext == "pdf":
+    elif file_ext == "pdf": # pdf 는 그대로 저장
         filepath = os.path.join(directory,f'{sid}.pdf')
         task = asyncio.create_task(save_uploaded_file(file,filepath))
         task.add_done_callback(callback_with_pdf(rooms_sid.get(sid),filepath))
-    else :
+    elif file_ext == "wav":# wav 형식은 그대로 저장
+        directory =  rooms_sid.get(sid)
+        filepath = os.path.join(directory, f'{sid}.wav')
+        task = asyncio.create_task(save_uploaded_file(file,filepath))
+        task.add_done_callback(callback_with_wav(rooms_sid.get(sid),filepath))
+    elif file_ext =="webm": # webm 은 wav 형변환
+        asyncio.create_task(handle_voice(sid,file))
+    else:# 지정된 파일 확장자가 아닌경우 
         raise HTTPException(status_code=400, detail="Only txt or pdf files are allowed")
     # 파일 저장
     
 async def save_uploaded_file(file: UploadFile, target_path: str):
     async with aiofiles.open(target_path, 'wb') as out_file:
-        content     = await file.read()
+        content = await file.read()
         await out_file.write(content)
 
 def callback_with_txt(lecture,filepath):
     ai.DoSendDataTxt(lecture,filepath) #txt 전송 # 파인튜닝 버퍼에 넣기 
-
+    print("TXT 콜백 발생")
 def callback_with_pdf(lectire,filepath):
-    ai.DoSendDataPdf((lectire,filepath))# pdf 전송  # 파인튜닝 버퍼에 넣기 
-  
-     
+    ai.DoSendDataPdf((lectire,filepath))# pdf 전송  # 파인튜닝 버퍼에 넣
+    print("PDF 콜백 발생")
+def callback_with_wav(lecture,filepath): 
+    ai.DoSendDataWav(lecture,filepath) #wav 파일 전송 # 파인튜닝 버퍼에 넣음
+    print("WAV 콜백 발생") 
 def callback_turtor_exit(lectrue,filepath):
     ai.DoSendDataWav(lectrue,filepath) # wav 파일 전송 #파인튜닝 버퍼에 넣기 
     ai.DoFineTuneCreate(lecture=lectrue) #파인튜닝 시작
-    
+    print("Tutor EXIT 콜백 발생 ")
  
 
 async def save_done_wav_file(sid):
@@ -146,27 +164,92 @@ async def save_done_wav_file(sid):
 
 @sio.on('question') # 사용자가 보낸 Questiob Request 
 def handle_question(sid,message):
-   ai.DoGetAnswer(sid,rooms_sid.get(sid),message)
-@sio.on('voice1')
-def handle_voice(sid,data): # blob 으로 들어온 데이터 
-    # BytesIO를 사용하여 메모리 상에서 오디오 데이터를 로드
-    audio_segment = AudioSegment.from_file(BytesIO(data), format="webm")
-    directory = "dddd"
-    # 오디오 파일로 저장
-    #directory = str(names_sid.get(sid))
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+   ai.DoGetAnswer(sid,rooms_sid.get(sid),message) 
+# @sio.on('voice1')
+# def handle_voice(sid,data): # blob 으로 들어온 데이터 
+#     # BytesIO를 사용하여 메모리 상에서 오디오 데이터를 로드
+#     audio_segment = AudioSegment.from_file(BytesIO(data), format="webm")
+#     directory = rooms_sid.get(sid)
+#     # 오디오 파일로 저장
+     
+#     #directory = str(rooms_sid.get(sid))
+#     if not os.path.exists(directory):
+#         os.makedirs(directory)
  
-    # 오디오 파일로 저장
-    file_path = os.path.join(directory, f'{sid}.wav')
-    audio_segment.export(file_path, format='wav') 
-    print('오디오 파일 저장 완료')
-    # sockeTIO 한번에 받고 한번에  처리하는 방식 
+#     # 오디오 파일로 저장
+#     file_path = os.path.join(directory, f'{sid}.wav')
+#     audio_segment.export(file_path, format='wav') 
+#     print('오디오 파일 저장 완료')
+#     # sockeTIO 한번에 받고 한번에  처리하는 방식 
 
 async def get_file_lock(file_path):
     if file_path not in lock_threading:        
         lock_threading[file_path] = asyncio.Lock()
     return lock_threading[file_path]
+@sio.on('chat')
+async def chat_handler(sid,data):
+    message =  data
+    from_user_name=names_sid.get(sid)
+    sio.emit('chat',from_user_name,message,room=rooms_sid.get(sid),skip_sid=sid)
+@sio.on('voice1')
+async def voice_received(sid,data):
+    asyncio.create_task(handle_voice(sid,data))
+async def handle_voice(sid,data): # blob 으로 들어온 데이터 
+    # BytesIO를 사용하여 메모리 상에서 오디오 데이터를 로드
+
+    #audio_segment = AudioSegment.from_file()
+    # 오디오 파일로 저장
+    # dirctory = str()
+    directory = str(rooms_sid.get(sid))
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    file_path = os.path.join(directory, f'{sid}.wav')
+    file_chunk_path = os.path.join(directory,f'{sid}chunk.wav')
+    # 오디오 파일로 저장
+    # 아래의 파일저장부분 
+    if not os.path.exists(file_path): # 처음 보낸 chunk 의 경우 
+       async with await get_file_lock(file_path=file_path): #
+        loop =  asyncio.get_event_loop()
+        audio_segment:AudioSegment = loop.run_in_executor
+        (None, AudioSegment.from_file, io.BytesIO(data), "webm")
+        loop.run_in_executor(None,audio_segment.export,file_path,'wav')
+        #audio_segment:AudioSegment =
+        #  AudioSegment.from_file(io.BytesIO(data), format="webm")
+        #audio_segment.export(file_path,format='wav')
+       #await write_file(file_path=file_path, audio_segment=audio_segment)
+    else:                             # 처음 이외에 보내는 chunk의 경우 .wav 파일에 대한 합성
+        async with await get_file_lock(file_path=file_path):
+            loop =  asyncio.get_event_loop()
+            audio_segment:AudioSegment =await loop.run_in_executor
+            (None, AudioSegment.from_file, io.BytesIO(data), "webm")
+            #audio_segment:AudioSegment = 
+            #AudioSegment.from_file(io.BytesIO(data), format="webm")
+            #audio_segment.export(file_path,format='wav')
+            loop.run_in_executor(None,audio_segment.export,file_chunk_path,format='wav') 
+            loop.run_in_executor(None,handle_audio_chunk,file_path,file_chunk_path)  
+    print('오디오 파일 저장 완료')
+async def handle_audio_chunk(filepath,chukpath):
+    
+    infiles = [ filepath,
+                chukpath]
+    outfile = os.path.join(filepath) 
+
+    
+    data= []
+    for infile in infiles:
+        
+        w = wave.open(os.getcwd()+'/'+infile, 'rb')
+        data.append([w.getparams(), w.readframes(w.getnframes())])
+        w.close()
+    
+    output = wave.open(outfile, 'wb')
+
+    output.setparams(data[0][0])
+
+    for i in range(len(data)):
+        output.writeframes(data[i][1])
+    output.close()
+    print("audio chunk 처리 완료")
 
 
 @sio.on('voice')
@@ -194,29 +277,10 @@ async def handle_voice(sid,data): # blob 으로 들어온 데이터
             audio_segment:AudioSegment = AudioSegment.from_file(io.BytesIO(data), format="webm")
             audio_segment.export(file_chunk_path,format='wav')
        
-            await handle_audio_chunk(file_path,file_chunk_path)
+            await  handle_audio_chunk(file_path,file_chunk_path)
     print('오디오 파일 저장 완료')
 # 아래함수를 쓰레드 함수로 만들가 
-async def handle_audio_chunk(filepath,chukpath):
-    
-    infiles = [ filepath,
-                chukpath]
-    outfile = os.path.join(filepath) 
-
-
-    data= []
-    for infile in infiles:
-        w = wave.open(os.getcwd()+'/'+infile, 'rb')
-        data.append([w.getparams(), w.readframes(w.getnframes())])
-        w.close()
-    
-    output = wave.open(outfile, 'wb')
-
-    output.setparams(data[0][0])
-
-    for i in range(len(data)):
-        output.writeframes(data[i][1])
-    output.close()
+ 
  
 
 
@@ -259,17 +323,20 @@ async def on_disconnect(sid,*args, **kwargs):
     print("[{}] Member left: {}<{}>".format(room_id, display_name, sid))
     await sio.emit("user-disconnect",{"sid": sid} 
                    ,room=room_id,skip_sid=sid)
-    if room_id and users_in_room.get(room_id) and users_in_room[room_id].get(sid):
+    if room_id and users_in_room.get(room_id) and sid in users_in_room[room_id]:
         users_in_room[room_id].remove(sid)
-    if  room_id and users_in_room.get(room_id) and len(users_in_room[room_id]) == 0:
-        users_in_room.pop(room_id,None)
+    elif  room_id and users_in_room.get(room_id) and len(users_in_room[room_id]) == 0:
+        users_in_room.remove(room_id)
+        sio.close_room(room=room_id)
         ai.DoLectureDelete(rooms_sid.get(sid))
         ai.DoSessionDelete(sid,rooms_sid.get(sid)) 
- 
+    
     if is_turtor.get(sid):
         directory = "upload"
         callback_turtor_exit(rooms_sid.get(sid),os.path.join
                             (directory+f'{sid}.wav'))
+    if len(users_in_room[room_id])==0:
+        users_in_room.pop(room_id)
     is_turtor.pop(sid,None)
     rooms_sid.pop(sid,None)
     names_sid.pop(sid,None)

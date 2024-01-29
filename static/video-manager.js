@@ -16,8 +16,8 @@ function checkVideoLayout() {
   const video_count = videos.length;
 
   if (video_count == 0) { } else if (video_count == 1) {
-    videos[0].style.width = "100%";
-    videos[0].style.height = "100vh";
+    videos[0].style.width = "50%";
+    videos[0].style.height = "50vh";
     videos[0].style.objectFit = "cover";
   } else if (video_count == 2) {
     videos[0].style.width = "100%";

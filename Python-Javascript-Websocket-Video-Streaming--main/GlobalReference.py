@@ -5,7 +5,7 @@ def dirUp(dire , times) :
     return dirUp(os.path.dirname(dire), times-1) if times >0 else dire
 
 # 명령어 설정
-cmd_command = 'setx OPENAI_API_KEY "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"'
+cmd_command = 'setx OPENAI_API_KEY "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"'
 subprocess.run(cmd_command, shell=True)
 
 

@@ -1,35 +1,375 @@
-<!DOCTYPE html>
-<html lang="en">
+    <!DOCTYPE html>
+    
+    <html lang="en">
 
-<head>
-    <!-- icon -->
-    <link rel="shortcut icon" href="{{ url_for('static', path='favicon.ico') }}">
+    <head>
+        <style>
+            #container {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: 1fr;
+                gap: 1em;
+                justify-items: stretch;
+                align-items: stretch;
+                height: 100vh;
+            }
 
-    <!-- socketio -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+            #file-upload {
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                z-index: 1000;
+                /* z-index 추가 */
+                grid-column: 1;
+                grid-row: 1;
+            }
 
-    <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+            #stream {
+                flex: 2;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
 
-    <!-- jQuery library -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+            #chat {
+                flex: 1;
+                display: flex;
+                justify-content: space-between;
+                height: 100vh;
+                grid-column: 2;
+                grid-row: 1;
+            }
 
-    <!-- jQuery UI -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"
-        integrity="sha512-uto9mlQzrs59VwILcLiRYeLKPPbS/bT71da/OEBYEwcdNUk8jYIy+D176RYoop1Da+f9mvkYrmj5MCLZWEtQuA=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            #user-chat,
+            #ai-chat {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                border: 1px solid #000;
+                padding: 10px;
+                overflow-y: auto;
+                width: 100%;
+            }
 
-    <!-- Popper JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
-    <!-- Latest compiled JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+            #user-chat-messages,
+            #ai-chat-messages {
+                flex: 1;
+                overflow-y: auto;
+            }
 
-    <!-- google Material icons -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+            #user-chat-input,
+            #ai-chat-input,
+            #user-send-btn,
+            #ai-send-btn {
+                margin-top: 10px;
+                width: 100%;
+            }
 
-    <!-- custom css -->
-    <link rel="stylesheet" href="{{url_for('static', path='custom.css')}}">
+            #video-area {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                grid-column: 1;
+                grid-row: 1;
+            }
 
+            #video_grid {
+                width: 800px;
+                height: 600px;
+                border: 1px solid #000;
+                margin-bottom: 20px;
+            }
+
+            #file-upload-dialog {
+                position: fixed;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #fff;
+                padding: 20px;
+                border: 1px solid #000;
+                z-index: 9999;
+                width: 500px;
+                /* 너비를 조금 키웠습니다 */
+                height: 350px;
+                /* 높이를 조금 키웠습니다 */
+            }
+
+            #submit-btn {  
+                /* 오른쪽 하단에 위치시키기 */
+                align-self: flex-end;
+                margin-top: 70px;
+                margin-left: 370px;
+            }
+
+            #close-dialog-btn {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+            }
+
+            #drop_zone {
+                border: 2px dashed #bbb;
+                border-radius: 20px;
+                width: 300px;
+                height: 100px;
+                font-size: 24px;
+                line-height: 100px;
+                text-align: center;
+                margin-top: 70px;
+            }
+
+            button {
+                padding: 10px 20px;
+                font-size: 16px;
+                cursor: pointer;
+            }
+        </style>
+
+        <!-- icon -->
+        <link rel="shortcut icon" href="{{ url_for('static', path='favicon.ico') }}">
+
+        <!-- socketio -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+
+        <!-- Latest compiled and minified CSS -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+        <!-- jQuery library -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+        <!-- jQuery UI -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"
+            integrity="sha512-uto9mlQzrs59VwILcLiRYeLKPPbS/bT71da/OEBYEwcdNUk8jYIy+D176RYoop1Da+f9mvkYrmj5MCLZWEtQuA=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+        <!-- Popper JS -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+        <!-- Latest compiled JavaScript -->
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+        <!-- google Material icons -->
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+        <!-- custom css -->
+        <link rel="stylesheet" href="{{url_for('static', path='custom.css')}}">
+
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Video Chat [{{room_id}}]</title>
+    </head>
+
+    <body>
+        
+        <input type=checkbox id="chk-hear-mic"><label for="chk-hear-mic">마이크 소리 듣기</label>
+        <script>
+            ////#####@@#
+             
+            const chkHearMic = document.getElementById("chk-hear-mic")
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)() // 오디오 컨텍스트 정의
+            const analyser = audioCtx.createAnalyser()   
+            var recordStartButton = document.getElementById('record-start');  
+            var recordStopButton = document.getElementById('record-stop')
+            let mediaRecorder;  
+            let chunks = [];
+            function makeSound(stream) {
+            const source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+            analyser.connect(audioCtx.destination);
+        }     
+        </script>
+       
+        <div id="container">
+            <div id="file-upload">
+                <button id="file-upload-btn">파일 업로드</button>
+                <button id="record-start">녹음 시작</button>
+                <button id="record-stop">녹음 중지</button>
+            </div>
+            <div id="file-upload-dialog" style="display: none;">
+                <button id="close-dialog-btn">다이얼로그 닫기</button>
+                <input type="file" id="file-input">
+                <div id="drop_zone">파일을 드래그 앤 드롭</div>
+                <button id="submit-btn">Submit</button> <!-- 위치가 변경된 Submit 버튼 -->
+            </div>
+            <div id="video-area">
+                <div id="rectangle"></div>
+                <div id="video_grid" class="video-grid"></div>
+                <video id="local_vid" autoplay muted></video>
+                <script src="{{url_for('static', path='video-manager.js')}}"></script>
+                <script src="{{url_for('static', path='chatroom_ui.js')}}"></script>
+                <script src="{{url_for('static', path='chatroom_networking.js')}}"></script>
+            </div>
+            <div id="chat">
+                <div id="user-chat">
+                    <p>유저 채팅창</p>
+                    <ul id="user-chat-messages"></ul>
+                    <input id="user-chat-input" type="text" placeholder="메시지를 입력하세요">
+                    <button id="user-send-btn">전송</button>
+                </div>
+                <div id="ai-chat">
+                    <p>AI 챗봇 채팅창</p>
+                    <ul id="ai-chat-messages"></ul>
+                    <input id="ai-chat-input" type="text" placeholder="메시지를 입력하세요">
+                    <button id="ai-send-btn">전송</button>
+                </div>
+            </div>
+        </div>
+    </body>
+
+    <script>
+        document.getElementById('file-upload-btn').addEventListener('click', function () {
+            document.getElementById('file-upload-dialog').style.display = 'block';
+        });
+
+        document.getElementById('close-dialog-btn').addEventListener('click', function () {
+            document.getElementById('file-upload-dialog').style.display = 'none';
+        });
+
+        var dropZone = document.getElementById('drop_zone');
+        dropZone.addEventListener('dragover', function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+
+        dropZone.addEventListener('drop', function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            var files = e.dataTransfer.files;
+            // 파일 처리 로직을 여기에 작성하세요.
+        });
+
+        document.getElementById('file-input').addEventListener('change', function (e) {
+            var files = e.target.files;
+            // 파일 처리 로직을 여기에 작성하세요.
+        });
+       
+        document.getElementById('submit-btn').addEventListener('click', function () {
+            // 'Submit' 버튼 클릭 시 수행할 작업을 여기에 작성하세요.
+        });
+
+
+        document.getElementById('record-start').addEventListener('click', function () {
+        if (navigator.mediaDevices) {
+            console.log('getUserMedia supported.');
+            this.style.background = "red"
+            this.style.color = "black"
+            const constraints = {
+                audio: true
+            };
+            let chunks = []
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    
+                    chkHearMic.onchange = e => {
+                        if (e.target.checked == true) {
+                            audioCtx.resume();
+                            makeSound(stream);
+                        } else {
+                            audioCtx.suspend();
+                        }
+                    };
+                    mediaRecorder.start(1000)
+                    console.log(mediaRecorder.state)
+                    mediaRecorder.onstop = e => {
+                        console.log("onstop happen!")
+                            
+                        if (chunks.length >= 9) {
+                            console.log("data available after MediaRecorder.stop() called.")
+                            const bb = new Blob(chunks, { 'type': 'audio/wav' })
+                            socket.emit('voice', bb)
+                        }
+                        chunks = []
+                    }
+                    mediaRecorder.ondataavailable = function (e) {
+                        chunks.push(e.data)
+                        console.log("add " + String(chunks.length))
+
+                        if (chunks.length >= 10) {
+                            mediaRecorder.stop()
+                            //const bloddb = new Blob(chunks, { 'type' : 'audio/wav' })
+                            //socket.emit('voice', bloddb)
+
+                            //chunks = []
+                            mediaRecorder.start(1000)
+                            //console.log("end " + String(chunks.length))
+                        }
+
+                        mediaRecorder.sendData = function (buffer) {
+                            const bloddb = new Blob(buffer, { 'type': 'audio/wav' })
+                            socket.emit('voice', bloddb)
+
+                            console.log("end " + String(chunks.length))
+                        }
+                    };
+
+                    // Call makeSound() function here
+                    
+                })
+                .catch(err => {
+                    console.log('The following error occurred: ' + err);
+                });
+        } else {
+            console.error('getUserMedia not supported on your browser!');
+        }
+    });
+
+    
+        document.getElementById('record-stop').addEventListener('click', 
+        function () {
+            document.getElementById('record-stop').addEventListener('click', function () {
+        if (navigator.mediaDevices) {
+
+        console.log('STOP INIT!');
+        this.style.background = "red"
+        this.style.color = "black"
+        const constraints = {
+            audio: true
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(stream => {
+                
+                mediaRecorder.stop(1000)
+                console.log(mediaRecorder.state)
+
+                mediaRecorder.onstop = e => {
+                    console.log('STOP EXEC!');
+                        
+                    if (chunks.length > 1) {
+                        console.log("STOP SEND!")
+                        const bb = new Blob(chunks, { 'type': 'audio/wav' })
+                        socket.emit('voice', bb)
+                    }
+                    chunks = []
+                }
+
+                mediaRecorder.ondataavailable = e => {};
+                // Call makeSound() function here
+                
+            })
+            .catch(err => {
+                console.log('The following error occurred: ' + err);
+            });
+    } else {
+        console.error('getUserMedia not supported on your browser!');
+    }
+    });
+        });
+        document.getElementById('user-send-btn').addEventListener('click',
+        function(){
+        var innertext  = document.getElementById('user-chat-input').value
+        socket.emit('chat',innertext)
+        innertext.value = ""
+
+        });
+    
+    </script>
 
     <script type="text/javascript">
         var myRoomID = "{{room_id}}";
@@ -37,21 +377,9 @@
         var audioMuted = "{{mute_audio}}" == "1";
         var videoMuted = "{{mute_video}}" == "1";
         console.log(">> {{mute_audio}}, {{mute_video}}", audioMuted, videoMuted);
-        console.log(myName,myRoomID);
+        console.log(myName, myRoomID);
     </script>
+    </div>
+    </body>
 
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Chat [{{room_id}}]</title>
-</head>
-
-<body>
-    <div id="video_grid" class="video-grid"></div>
-    <video id="local_vid" autoplay muted></video>
-
-    <script src="{{url_for('static', path='video-manager.js')}}"></script>
-    <script src="{{url_for('static', path='chatroom_ui.js')}}"></script>
-    <script src="{{url_for('static', path='chatroom_networking.js')}}"></script>
-</body>
-
-</html>
+    </html>
