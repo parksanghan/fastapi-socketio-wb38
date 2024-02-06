@@ -1,4 +1,4 @@
- 
+# -*- coding: cp949 -*-
 import PyPDF2, os
 
 class Pdf2TextConverter:

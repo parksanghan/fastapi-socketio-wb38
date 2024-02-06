@@ -1,0 +1,494 @@
+
+<!DOCTYPE html>
+    
+<html lang="en">
+
+<head>
+    <style>
+         img {
+        width : 100%; /* 원하는 너비로 조정합니다. */
+        height: auto; /* 높이를 자동으로 조정하여 비율 유지합니다. */
+    }
+        #container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr;
+            gap: 1em;
+            justify-items: stretch;
+            align-items: stretch;
+            height: 100vh;
+        }
+
+        #file-upload {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            /* z-index 추가 */
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        #stream {
+            flex: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #chat {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            height: 100vh;
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        #user-chat,
+        #ai-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 1px solid #000;
+            padding: 10px;
+            overflow-y: auto;
+            width: 100%;
+        }
+
+        #user-chat-messages,
+        #ai-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        #user-chat-input,
+        #ai-chat-input,
+        #user-send-btn,
+        #ai-send-btn {
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        #video-area {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            grid-column: 1;
+            grid-row: 1;
+            overflow-x: auto; /* 수평 스크롤을 활성화합니다. */
+            overflow-y: hidden; /* 수직 스크롤을 숨깁니다. */
+            max-width: 80vw; /* 비디오 영역의 최대 너비를 지정합니다. */
+        }
+
+            #video_grid {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+             
+                /*overflow-x: auto; /* 수평 스크롤을 활성화합니다. */
+                overflow-y: hidden; /* 수직 스크롤을 숨깁니다. */
+                /*max-width: 80vw;*/ /* 비디오 영역의 최대 너비를 지정합니다. */
+                max-width: 100%; /* 비디오 영역의 최대 너비를 조정합니다. */
+            }
+
+        #file-upload-dialog {
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fff;
+            padding: 20px;
+            border: 1px solid #000;
+            z-index: 9999;
+            width: 500px;
+            /* 너비를 조금 키웠습니다 */
+            height: 350px;
+            /* 높이를 조금 키웠습니다 */
+        }
+
+        #submit-btn {  
+            /* 오른쪽 하단에 위치시키기 */
+            align-self: flex-end;
+            margin-top: 70px;
+            margin-left: 370px;
+        }
+
+        #close-dialog-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        #drop_zone {
+            border: 2px dashed #bbb;
+            border-radius: 20px;
+            width: 300px;
+            height: 100px;
+            font-size: 24px;
+            line-height: 100px;
+            text-align: center;
+            margin-top: 70px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+
+    <!-- icon -->
+    <link rel="shortcut icon" href="{{ url_for('static', path='favicon.ico') }}">
+
+    <!-- socketio -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <!-- jQuery library -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <!-- jQuery UI -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"
+        integrity="sha512-uto9mlQzrs59VwILcLiRYeLKPPbS/bT71da/OEBYEwcdNUk8jYIy+D176RYoop1Da+f9mvkYrmj5MCLZWEtQuA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- Popper JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <!-- Latest compiled JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- google Material icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- custom css -->
+    <link rel="stylesheet" href="{{url_for('static', path='custom.css')}}">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Chat [{{room_id}}]</title>
+</head>
+
+<body>
+    
+    <input type="checkbox" id="chk-hear-mic">
+    <label for="chk-hear-mic">마이크 소리 듣기</label>
+    <script src="..\..\static\chatroom_networking.js"></script>
+    <script>
+        const chkHearMic = document.getElementById("chk-hear-mic")
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)() // 오디오 컨텍스트 정의
+        const analyser = audioCtx.createAnalyser()   
+    
+         
+        let mediaRecorder;  
+        let chunks = [];
+        function makeSound(stream) {
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination);
+    }     
+    </script>
+   
+    <div id="container">
+        <div id="file-upload">
+            <button id="file-upload-btn">파일 업로드</button>
+            <button id="record-start">녹음 시작</button>
+            <button id="record-stop">녹음 중지</button>
+        </div>
+        <div id="file-upload-dialog" style="display: none;">
+            <button id="close-dialog-btn">다이얼로그 닫기</button>
+            <input type="file" id="file-input">
+            <div id="drop_zone">파일을 드래그 앤 드롭</div>
+            <button id="submit-btn">Submit</button> <!-- 위치가 변경된 Submit 버튼 -->
+        </div>
+        <div id="video-area">
+            <div id="rectangle"></div>
+            <div id="video_grid" class="video-grid"></div>
+            <video id="local_vid" autoplay muted></video>
+            <script src="{{url_for('static', path='video-manager.js')}}"></script>
+            <script src="{{url_for('static', path='chatroom_ui.js')}}"></script>
+            <script src="{{url_for('static', path='chatroom_networking.js')}}"></script>
+            
+        </div>
+        <div id="chat">
+            <div id="user-chat">
+                <p>유저 채팅창</p>
+                <ul id="user-chat-messages"></ul>
+                <input id="user-chat-input" type="text" placeholder="메시지를 입력하세요">
+                <button id="user-send-btn">전송</button>
+            </div>
+            <div id="ai-chat">
+                <p>AI 챗봇 채팅창</p>
+                <ul id="ai-chat-messages"></ul>
+                <input id="ai-chat-input" type="text" placeholder="메시지를 입력하세요">
+                <button id="ai-send-btn">전송</button>
+            </div>
+        </div>  
+    </div>
+</body>
+
+<script>
+    
+    async function uploadFile(sid, file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch(`/upload/${sid}`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                console.log('File uploaded successfully');
+            } else {
+                console.error('Failed to upload file');
+            }
+        } catch (error) {
+            console.error('Error during file upload:', error);
+        }
+    }
+
+    document.getElementById('file-upload-btn').addEventListener('click', function () {
+        document.getElementById('file-upload-dialog').style.display = 'block';
+    });
+
+    document.getElementById('close-dialog-btn').addEventListener('click', function () {
+        document.getElementById('file-upload-dialog').style.display = 'none';
+    });
+
+    var dropZone = document.getElementById('drop_zone');
+
+    dropZone.addEventListener('dragover', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        
+    });
+
+    dropZone.addEventListener('drop', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        var files = e.dataTransfer.files;
+
+        console.log("dragover");
+        
+        document.getElementById('file-input').files = files;
+    });
+
+    document.getElementById('file-input').addEventListener('change', function (e) {
+        var files = e.target.files;
+    });
+   
+    document.getElementById('submit-btn').addEventListener('click', function () {
+        // 'Submit' 버튼 클릭 시 수행할 작업을 여기에 작성하세요.
+        
+        const sid = myID; // 실제 sid 값을 적용해야 합니다.
+        /**
+         * @type {FileList}
+         */
+        const fileInput  = document.getElementById('file-input').files; // 파일 입력 요소의 ID에 맞게 변경해야 합니다.
+        
+        console.log("submit-btn - click" + String(fileInput.item(0)));
+
+        if (fileInput.item(0)) {
+            uploadFile(sid, fileInput.item(0));
+        } else {
+            console.error('No file selected');
+        }
+
+    });
+
+    document.getElementById('record-start').addEventListener('click', function () {
+    if (navigator.mediaDevices) {
+        console.log('getUserMedia supported.');
+        this.style.background = "red"
+        this.style.color = "black"
+        
+        recordStartButton.style.color  = "black"
+        recordStopButton.style.background = "white"
+        
+        const constraints = {
+            audio: true
+        };
+        let chunks = []
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                
+                chkHearMic.onchange = e => {
+                    if (e.target.checked == true) {
+                        audioCtx.resume();
+                        makeSound(stream);
+                    } else {
+                        audioCtx.suspend();
+                    }
+                };
+                mediaRecorder.start(1000)
+                console.log(mediaRecorder.state)
+                mediaRecorder.onstop = e => {
+                    console.log("onstop happen!")
+                        
+                    if (chunks.length >= 9) {
+                        console.log("data available after MediaRecorder.stop() called.")
+                        const bb = new Blob(chunks, { 'type': 'audio/wav' })
+                        socket.emit('voice', bb)
+                    }
+                    chunks = []
+                }
+                mediaRecorder.ondataavailable = function (e) {
+                    chunks.push(e.data)
+                    console.log("add " + String(chunks.length))
+
+                    if (chunks.length >= 10) {
+                        mediaRecorder.stop()
+                        //const bloddb = new Blob(chunks, { 'type' : 'audio/wav' })
+                        //socket.emit('voice', bloddb)
+
+                        //chunks = []
+                        mediaRecorder.start(1000)
+                        //console.log("end " + String(chunks.length))
+                    }
+
+                    mediaRecorder.sendData = function (buffer) {
+                        const bloddb = new Blob(buffer, { 'type': 'audio/wav' })
+                        socket.emit('voice', bloddb)
+
+                        console.log("end " + String(chunks.length))
+                    }
+                };
+
+                // Call makeSound() function here
+                
+            })
+            .catch(err => {
+                console.log('The following error occurred: ' + err);
+            });
+    } else {
+        console.error('getUserMedia not supported on your browser!');
+    }
+});
+
+
+    document.getElementById('record-stop').addEventListener('click', 
+    function () {
+        
+    if (navigator.mediaDevices) {
+
+    console.log('STOP INIT!');
+    this.style.background = "red"
+    this.style.color = "black"
+
+    recordStartButton.style.background = "white"
+    
+    const constraints = {
+        audio: true
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints)
+        .then(stream => {
+            
+            mediaRecorder.stop(1000)
+            console.log(mediaRecorder.state)
+
+            mediaRecorder.onstop = e => {
+                console.log('STOP EXEC!');
+                    
+                if (chunks.length > 1) {
+                    console.log("STOP SEND!")
+                    const bb = new Blob(chunks, { 'type': 'audio/wav' })
+                    socket.emit('voice', bb)
+                }
+                chunks = []
+            }
+
+            mediaRecorder.ondataavailable = e => {};
+            // Call makeSound() function here
+            
+        })
+        .catch(err => {
+            console.log('The following error occurred: ' + err);
+        });
+} else {
+    console.error('getUserMedia not supported on your browser!');
+}
+});
+    
+document.getElementById('user-send-btn').addEventListener('click', function(){
+var inputElement = document.getElementById('user-chat-input');
+var message = inputElement.value;
+socket.emit('chat', message); // 메세지 전송 후 
+inputElement.value = ""; // 입력란을 공백으로 초기화
+
+}); 
+document.getElementById('ai-send-btn').addEventListener('click', function(){
+    let count = 1;
+    let dots = ".";
+    var inputElement = document.getElementById('ai-chat-input');
+    var message = inputElement.value;
+    var messageList = document.getElementById('ai-chat-messages'); // 요소를 가져옵니다.
+    var newMessage = document.createElement('li'); // 새로운 리스트 아이템을 생성합니다.
+    var textNode = document.createTextNode("나 : "+message); // 텍스트 노드를 생성합니다.
+    newMessage.appendChild(textNode); // 리스트 아이템에 텍스트 노드를 추가합니다.
+    messageList.appendChild(newMessage); // 요소에 리스트 아이템을 추가합니다.
+    var newNodeMessage = document.createElement('li'); // 새로운 리스트 아이템을 생성합니다.
+    var newtextNode = document.createTextNode("흙PT 답변 생성 중.."); // 텍스트 노드를 생성합니다.
+    newNodeMessage.appendChild(newtextNode); // 리스트 아이템에 텍스트 노드를 추가합니다.
+    messageList.appendChild(newNodeMessage); // 요소에 리스트 아이템을 추가합니다.
+    socket.emit('question', message); // 메세지 전송 후 
+    inputElement.value = ""; // 입력란을 공백으로 초기화
+    let showEllipsis = true;
+    ellipsisInterval = setInterval(() => {
+        let displayedDots = dots.repeat(count);
+        // 마지막 메시지를 가져옵니다.
+        let lastMessage = messageList.lastChild;
+        // 마지막 메시지의 텍스트를 업데이트합니다.
+        lastMessage.textContent = "흙PT 답변 중 : " + displayedDots;
+        count = (count % 4) + 1; // 1부터 3까지 순환
+    }, 1000);
+});
+document.addEventListener("tutor",function(){
+  // 라벨과 오디오 체크박스를 버튼들의 옆에 배치합니다.
+labelmic.style.display = "inline-block";
+
+checkBoxAudio.style.display = "inline-block";
+
+// 버튼들을 세로로 나열합니다.
+fileuploadButton.style.display = "inline-block";
+recordStartButton.style.display = "inline-block";
+recordStopButton.style.display = "inline-block";
+
+ 
+});
+</script>
+
+<script type="text/javascript">
+    var myRoomID = "{{room_id}}";
+    var myName = "{{display_name}}";
+    var audioMuted = "{{mute_audio}}" == "1";
+    var videoMuted = "{{mute_video}}" == "1";
+    console.log(">> {{mute_audio}}, {{mute_video}}", audioMuted, videoMuted);
+    let ellipsisInterval; // setInterval을 담을 변수
+    console.log(myName, myRoomID);
+    var checkBoxAudio =  document.getElementById('chk-hear-mic')
+    var recordStartButton = document.getElementById('record-start');  
+    var recordStopButton = document.getElementById('record-stop');
+    var fileuploadButton =  document.getElementById('file-upload-btn');
+    var labelmic = document.querySelector('label[for="chk-hear-mic"]');
+    checkBoxAudio.style.display  = "none";
+    recordStartButton.style.display = "none";
+    recordStopButton.style.display = "none"; 
+    fileuploadButton.style.display =  "none";
+    labelmic.style.display = "none";
+     
+</script>
+</div>
+</body>
+
+</html>

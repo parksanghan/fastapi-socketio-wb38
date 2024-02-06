@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <!-- icon -->
+    <link
+      rel="shortcut icon"
+      href="{{ url_for('static', path='favicon.ico') }}"
+    />
+
+    <!-- socketio -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+
+    <!-- Latest compiled and minified CSS -->
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+
+    <!-- jQuery library -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <!-- jQuery UI -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"
+      integrity="sha512-uto9mlQzrs59VwILcLiRYeLKPPbS/bT71da/OEBYEwcdNUk8jYIy+D176RYoop1Da+f9mvkYrmj5MCLZWEtQuA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+
+    <!-- Popper JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <!-- Latest compiled JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- google Material icons -->
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+
+    <!-- custom css -->
+    <link rel="stylesheet" href="{{url_for('static', path='custom.css')}}" />
+    <link rel="stylesheet" href="css/join/style.css" />
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Chat [{{room_id}}]</title>
+  </head>
+
+  <body>
+    <input type="checkbox" class="chk-hear-mic" />
+    <label for="chk-hear-mic">마이크 소리 듣기</label>
+    <script src="..\..\static\chatroom_networking.js"></script>
+    <!-- 분리 -->
+    <script src="/js/chunk.js"></script>
+    <!-- 분리 -->
+    <div class="container">
+      <div class="file-upload">
+        <button class="file-upload-btn">파일 업로드</button>
+        <button class="record-start">녹음 시작</button>
+        <button class="record-stop">녹음 중지</button>
+      </div>
+      <div class="file-upload-dialog" style="display: none">
+        <button class="close-dialog-btn">다이얼로그 닫기</button>
+        <input type="file" class="file-input" />
+        <div class="drop_zone">파일을 드래그 앤 드롭</div>
+        <button class="submit-btn">Submit</button>
+        <!-- 위치가 변경된 Submit 버튼 -->
+      </div>
+      <div class="video-area">
+        <div class="rectangle"></div>
+        <div class="video_grid" class="video-grid"></div>
+        <video class="local_vid" autoplay muted></video>
+        <script src="{{url_for('static', path='video-manager.js')}}"></script>
+        <script src="{{url_for('static', path='chatroom_ui.js')}}"></script>
+        <script src="{{url_for('static', path='chatroom_networking.js')}}"></script>
+      </div>
+      <div class="chat">
+        <div class="user-chat">
+          <p>유저 채팅창</p>
+          <ul class="user-chat-messages"></ul>
+          <input
+            class="user-chat-input"
+            type="text"
+            placeholder="메시지를 입력하세요"
+          />
+          <button class="user-send-btn">전송</button>
+        </div>
+        <div class="ai-chat">
+          <p>AI 챗봇 채팅창</p>
+          <ul class="ai-chat-messages"></ul>
+          <input
+            class="ai-chat-input"
+            type="text"
+            placeholder="메시지를 입력하세요"
+          />
+          <button class="ai-send-btn">전송</button>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <!-- 분리 -->
+  <script src="/js/package.js"></script>
+  <!-- 분리 -->
+  <script src="/js/professorCam.js"></script>
+</html>

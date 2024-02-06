@@ -10,44 +10,25 @@ $('#local_vid').draggable({
 });
 
 function checkVideoLayout() {
-
   const video_grid = document.getElementById("video_grid");
   const videos = video_grid.querySelectorAll("video");
   const video_count = videos.length;
 
-  if (video_count == 0) { } else if (video_count == 1) {
-    videos[0].style.width = "50%";
-    videos[0].style.height = "50vh";
-    videos[0].style.objectFit = "cover";
-  } else if (video_count == 2) {
-    videos[0].style.width = "100%";
-    videos[0].style.height = "50vh";
-    videos[0].style.objectFit = "cover";
-    videos[1].style.width = "100%";
-    videos[1].style.height = "50vh";
-    videos[1].style.objectFit = "cover";
-  } else if (video_count == 3) {
-    videos[0].style.width = "100%";
-    videos[0].style.height = "50vh";
-    videos[0].style.objectFit = "cover";
-    videos[1].style.width = "50%";
-    videos[1].style.height = "50vh";
-    videos[1].style.objectFit = "cover";
-    videos[2].style.width = "50%";
-    videos[2].style.height = "50vh";
-    videos[2].style.objectFit = "cover";
-  } else {
-    videos[0].style.width = "50%";
-    videos[0].style.height = "50vh";
-    videos[0].style.objectFit = "cover";
-    videos[1].style.width = "50%";
-    videos[1].style.height = "50vh";
-    videos[1].style.objectFit = "cover";
-    videos[2].style.width = "50%";
-    videos[2].style.height = "50vh";
-    videos[2].style.objectFit = "cover";
-    videos[3].style.width = "50%";
-    videos[3].style.height = "50vh";
-    videos[3].style.objectFit = "cover";
+  if (video_count > 0) {
+    // 비디오가 있을 때만 실행됩니다.
+
+    // 비디오 개수에 따라 동적으로 레이아웃을 조정합니다.
+    for (let i = 0; i < video_count; i++) {
+      if (video_count === 1) {
+        videos[i].style.width = "100%";
+        videos[i].style.height = "100vh";
+        videos[i].style.objectFit = "cover";
+      } else {
+        // 2개 이상의 비디오가 있는 경우
+        videos[i].style.width = "50%";
+        videos[i].style.height = "50vh";
+        videos[i].style.objectFit = "cover";
+      }
+    }
   }
-}
+} 

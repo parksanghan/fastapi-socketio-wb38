@@ -1,4 +1,4 @@
- 
+# -*- coding: cp949 -*-
 import hashlib
 import ctypes
 import sys
@@ -10,7 +10,7 @@ from SessionManager import SessionManagerV2
 from FineTuneManager import FineTuneManager
 from Addon.ServerAndClient import Server, Client
 
-import GlobalReference as GlobalReference
+import GlobalReference 
 from _240102_OpenAI_API.AiProcessSources.ApiManager import printError, printSucceed, printWarning
 
 p1 = GlobalReference.PARSER[0]
@@ -42,13 +42,13 @@ class ProcessManager() :
         
         ctypes.windll.kernel32.SetConsoleTitleW("AiEnviormentTerminal")
         
-        # Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
+        # Å¬¶óÀÌ¾ðÆ® »ý¼º
         self.client : Client = Client("127.0.0.1", 4090, self.__ClientDel__)
     
-        # Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
+        # Å¬¶óÀÌ¾ðÆ® ¿¬°á
         self.client.Connect()
     
-        # Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ®ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Øºï¿½ ï¿½Ç¾ï¿½ï¿½Ù°ï¿½ ï¿½ï¿½ï¿½ï¿½
+        # Å¬¶óÀÌ¾ðÆ®°¡ ÀÔ·Â ¹ÞÀ» ÁØºñ°¡ µÇ¾ú´Ù°í Àü¼Û
         self.client.Send(f"ProcessStart{p1}")
         
     def __ClientDel__(self, packet) :
@@ -109,6 +109,17 @@ class ProcessManager() :
                     tu = threading.Thread(target=thr);
                     tu.start();
                 
+                case "SendDataPpt":
+                    ssp = sp[1].split(p2)
+                    lecture = ssp[0]
+                    path = ssp[1]
+                    
+                    def thr () :
+                        ret = self.ft.AddPptData(lecture, path)
+                        self.client.Send(f"SendDataPpt{p1}{str(ret)}{p2}{lecture}{p2}{path}")
+                        
+                    tu = threading.Thread(target=thr);
+                    tu.start();
                 
                 case "SendDataTxt": 
                     ssp = sp[1].split(p2)
@@ -121,6 +132,7 @@ class ProcessManager() :
                 case "FineTuneCreate":
                     ssp = sp[1].split(p2)
                     lecture = ssp[0]
+                    
                     ret = self.ft.StartFineTuneJob(lecture)
                 
                     self.client.Send(f"FineTuneCreate{p1}{str(ret)}{p2}{lecture}")
@@ -152,63 +164,66 @@ class ProcessManager() :
                     question = ssp[2]
                 
                     def __callbackFun__(sid, lecture, answer) :
-                        printSucceed(f"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½äº¯ ï¿½ï¿½ï¿½ï¿½ ({sid}/{lecture}) \n[Quesetion] : {question} \n[Answer] : {answer}")
-                        self.client.Send(f"GetAnswer{p1}{sid}{p2}{lecture}{p2}{answer}")
+                        printSucceed(f"Áú¹®¿¡ ´ëÇÑ ´äº¯ »ý¼º ({sid}/{lecture}) \n[Quesetion] : {question} \n[Answer] : {answer}")
+                        imgRoot : str = self.ft.FindSimilarity(lecture, question)                         
+
+                        printSucceed(f"À¯»çµµ ³ôÀº ÀÌ¹ÌÁö ({sid}/{lecture}) \n[image] : {imgRoot}")
+                        self.client.Send(f"GetAnswer{p1}{sid}{p2}{lecture}{p2}{answer}{p2}{'None' if imgRoot == None else imgRoot}")
                     
                     self.api.InitRequest(sid, lecture, question, callback=__callbackFun__)
             
                 case _:
                     if flag == "" : return;
             
-                    printWarning(f"""'{flag}'ï¿½ï¿½ ï¿½ï¿½È¿ï¿½ï¿½ ï¿½ï¿½Å¶ Å¸ï¿½ï¿½ï¿½ï¿½ ï¿½Æ´Õ´Ï´ï¿½. reciecve : {packet}""")
+                    printWarning(f"""'{flag}'´Â À¯È¿ÇÑ ÆÐÅ¶ Å¸ÀÔÀÌ ¾Æ´Õ´Ï´Ù. reciecve : {packet}""")
             
 
         except Exception as ex:
-            printError(f"ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Ü°ï¿½ ï¿½ß»ï¿½ï¿½ß½ï¿½ï¿½Ï´ï¿½! {ex}\n{ex.with_stacktrace().format_exc()}")
+            printError(f"¼ÒÄÏ Åë½Å Áß ¿¹¿Ü°¡ ¹ß»ýÇß½À´Ï´Ù! {ex}\n{ex.with_stacktrace().format_exc()}")
       
     def __DebugFunction__(self) : 
         self.api.PrintAllModels();
         self.ft.StartFineTuneChecker();
         
         # self.ft.LecturesLoad();
-        # self.ft.LecturesCreate("B# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½");
+        # self.ft.LecturesCreate("B# ÇÁ·Î±×·¡¹Ö");
         # self.ft.LecturesLoad();
-        # self.ft.LecturesDelete("B# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½");
-        # self.ft.LecturesCreate("ï¿½Ú»ï¿½ï¿½Ñ¿ï¿½ ï¿½ï¿½ï¿½Ø¼ï¿½");
-        # self.ft.AddRawData("ï¿½Ú»ï¿½ï¿½Ñ¿ï¿½ ï¿½ï¿½ï¿½Ø¼ï¿½", "S:\\test.txt");
-        # self.ft.__MakeDataSet__("ï¿½Ú»ï¿½ï¿½Ñ¿ï¿½ ï¿½ï¿½ï¿½Ø¼ï¿½", r"C:\Users\skyma\Documents\WB38\Lectures\C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½\RAW_DATA\test.txt")
+        # self.ft.LecturesDelete("B# ÇÁ·Î±×·¡¹Ö");
+        # self.ft.LecturesCreate("¹Ú»óÇÑ¿¡ ´ëÇØ¼­");
+        # self.ft.AddRawData("¹Ú»óÇÑ¿¡ ´ëÇØ¼­", "S:\\test.txt");
+        # self.ft.__MakeDataSet__("¹Ú»óÇÑ¿¡ ´ëÇØ¼­", r"C:\Users\skyma\Documents\WB38\Lectures\C# ÇÁ·Î±×·¡¹Ö\RAW_DATA\test.txt")
         # self.ft.LecturesSave();
 
-        # self.ft.LecturesCreate("C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½");
-        # # self.ft.AddPdfData("C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½", "S:\\test_pdf.pdf");
-        # self.ft.__MakeDataSet__("C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½", r"C:\Users\skyma\Documents\WB38\Lectures\C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½\RAW_DATA\test_pdf_mm2.txt")
+        # self.ft.LecturesCreate("C# ÇÁ·Î±×·¡¹Ö");
+        # # self.ft.AddPdfData("C# ÇÁ·Î±×·¡¹Ö", "S:\\test_pdf.pdf");
+        # self.ft.__MakeDataSet__("C# ÇÁ·Î±×·¡¹Ö", r"C:\Users\skyma\Documents\WB38\Lectures\C# ÇÁ·Î±×·¡¹Ö\RAW_DATA\test_pdf_mm2.txt")
         # self.ft.LecturesSave();
-        # self.ft.__MergeDataSet__("C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½")
-        # self.api.UploadFile("C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½")
+        # self.ft.__MergeDataSet__("C# ÇÁ·Î±×·¡¹Ö")
+        # self.api.UploadFile("C# ÇÁ·Î±×·¡¹Ö")
         
-        # self.ft.StartFineTuneJob("C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½")
+        # self.ft.StartFineTuneJob("C# ÇÁ·Î±×·¡¹Ö")
         
-        # self.api.DeleteFineTuneModel(self.ft.modelLib["C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½"]);
+        # self.api.DeleteFineTuneModel(self.ft.modelLib["C# ÇÁ·Î±×·¡¹Ö"]);
 
         # self.api.DeleteFineTuneModel("ft:gpt-3.5-turbo-1106:personal::8fN4DBXe");
         
-        # self.api.InitRequest(1, "C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½", "C#ï¿½ï¿½ ï¿½Ö¼ï¿½ ï¿½ï¿½É¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½.",
-        #                      lambda sid, lecture, response : print(f"[{str(sid)}ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ '{lecture}' ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½] : {response}"))
+        # self.api.InitRequest(1, "C# ÇÁ·Î±×·¡¹Ö", "C#ÀÇ ÁÖ¼® ±â´É¿¡ ´ëÇØ ¼³¸íÇØÁà.",
+        #                      lambda sid, lecture, response : print(f"[{str(sid)}¹ø »ç¿ëÀÚÀÇ '{lecture}' °ú¸ñ¿¡ ´ëÇÑ Áú¹®¿¡ ´ëÇÑ ÀÀ´ä] : {response}"))
         
-        # self.api.InitRequest(2, "C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½", "ï¿½Ì¾ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ß´Âµï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ù·ï¿½?",
-        #                      lambda sid, lecture, response : print(f"[{str(sid)}ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ '{lecture}' ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½] : {response}"))
+        # self.api.InitRequest(2, "C# ÇÁ·Î±×·¡¹Ö", "¹Ì¾È, ³»°¡ ¹¹¶ó°í Çß´ÂÁö ±ôºýÇß´Âµ¥ ´Ù½Ã º¸³»ÁÙ·¡?",
+        #                      lambda sid, lecture, response : print(f"[{str(sid)}¹ø »ç¿ëÀÚÀÇ '{lecture}' °ú¸ñ¿¡ ´ëÇÑ Áú¹®¿¡ ´ëÇÑ ÀÀ´ä] : {response}"))
         
-        # self.api.InitRequest(3, "C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½", "ï¿½Ì¾ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ß´Âµï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ù·ï¿½?",
-        #                      lambda sid, lecture, response : print(f"[{str(sid)}ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ '{lecture}' ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½] : {response}"))
+        # self.api.InitRequest(3, "C# ÇÁ·Î±×·¡¹Ö", "¹Ì¾È, ³»°¡ ¹¹¶ó°í Çß´ÂÁö ±ôºýÇß´Âµ¥ ´Ù½Ã º¸³»ÁÙ·¡?",
+        #                      lambda sid, lecture, response : print(f"[{str(sid)}¹ø »ç¿ëÀÚÀÇ '{lecture}' °ú¸ñ¿¡ ´ëÇÑ Áú¹®¿¡ ´ëÇÑ ÀÀ´ä] : {response}"))
         
-        # self.api.InitRequest(4, "C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½", "C#ï¿½ï¿½ ï¿½Ö¼ï¿½ ï¿½ï¿½É¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½.",
-        #                      lambda sid, lecture, response : print(f"[{str(sid)}ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ '{lecture}' ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½] : {response}"))
+        # self.api.InitRequest(4, "C# ÇÁ·Î±×·¡¹Ö", "C#ÀÇ ÁÖ¼® ±â´É¿¡ ´ëÇØ ¼³¸íÇØÁà.",
+        #                      lambda sid, lecture, response : print(f"[{str(sid)}¹ø »ç¿ëÀÚÀÇ '{lecture}' °ú¸ñ¿¡ ´ëÇÑ Áú¹®¿¡ ´ëÇÑ ÀÀ´ä] : {response}"))
 
 if __name__ == "__main__":
     pm : ProcessManager = ProcessManager(SessionManagerV2(), OpenAiManagerV2(), FineTuneManager())
-    # pm.ft.StartFineTuneJob("C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½")
-    # print(pm.ft.__CheckFineTuneAvailable__("C# ï¿½ï¿½ï¿½Î±×·ï¿½ï¿½ï¿½"))
-    # print(pm.ft.__CheckFineTuneAvailable__("ï¿½Ú»ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½É·Î·ï¿½ï¿½ï¿½"))
+    # pm.ft.StartFineTuneJob("C# ÇÁ·Î±×·¡¹Ö")
+    # print(pm.ft.__CheckFineTuneAvailable__("C# ÇÁ·Î±×·¡¹Ö"))
+    # print(pm.ft.__CheckFineTuneAvailable__("¹Ú»óÇÑÀÇ ÄÉ·Î·ÎÇÐ"))
     while True : sleep(1.)
 
 

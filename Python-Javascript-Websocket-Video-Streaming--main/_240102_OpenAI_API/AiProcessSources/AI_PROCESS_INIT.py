@@ -1,4 +1,4 @@
- 
+# -*- coding: cp949 -*-
 
 try : 
 
@@ -22,26 +22,26 @@ try :
 
     def terminate_console_by_title(title):
         for process in psutil.process_iter(['pid', 'name']):
-            if process.info['name'] == 'cmd.exe':  # ï¿½Ü¼ï¿½ Ã¢ï¿½ï¿½ ï¿½Ì¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+            if process.info['name'] == 'cmd.exe':  # ÄÜ¼Ö Ã¢ÀÇ ÀÌ¸§¿¡ µû¶ó º¯°æ
                 try:
-                    # ï¿½ï¿½ï¿½Î¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+                    # ÇÁ·Î¼¼½º Á¾·á
                     process.terminate()
-                    process.wait(timeout=5)  # ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+                    process.wait(timeout=5)  # Á¾·áµÉ ¶§±îÁö ´ë±â
                 except Exception as e:
-                    print(f"ï¿½ï¿½ï¿½Î¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ß»ï¿½: {e}")
+                    print(f"ÇÁ·Î¼¼½º Á¾·á Áß ¿À·ù ¹ß»ý: {e}")
 
 
-    # ï¿½ï¿½ï¿½ï¿½ È¯ï¿½ï¿½ ï¿½ï¿½ï¿½
+    # °¡»ó È¯°æ °æ·Î
     envPath = GlobalReference.envPath;
     print(envPath)
-    # ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ ï¿½ï¿½ï¿½
+    # ÁøÀÔÁ¡ ÄÚµå °æ·Î
     initPath = GlobalReference.initPath;
     print(initPath)
 
     cmdCommands = f"cd {envPath}"               # cd S:env
     cmdCommands += " && " + envPath[:2]         # S:
-    cmdCommands += " && " + "Scripts\\activate" # ï¿½ï¿½ï¿½ï¿½È¯ï¿½ï¿½ È°ï¿½ï¿½È­
-    cmdCommands += " && " + f'''py "{initPath}"'''    # ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ È°ï¿½ï¿½È­
+    cmdCommands += " && " + "Scripts\\activate" # °¡»óÈ¯°æ È°¼ºÈ­
+    cmdCommands += " && " + f'''py "{initPath}"'''    # ½ÃÀÛ ÄÚµå È°¼ºÈ­
 
     inputCommand = f'start cmd /k "{cmdCommands}"'
 
@@ -52,7 +52,7 @@ try :
     with open(rf"{filePath}\communication_file.txt", "w") as file:
         file.write("")
 
-    print("ï¿½ï¿½ï¿½ï¿½È¯ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½Õ´Ï´ï¿½...")
+    print("°¡»óÈ¯°æÀ» ·ÎµåÇÕ´Ï´Ù...")
     process = subprocess.Popen(inputCommand, shell=True, creationflags=subprocess.CREATE_NO_WINDOW )
     
     while True:
@@ -72,7 +72,7 @@ try :
                 message = file.read()
             
                 if(message == "EXIT_CODE") :
-                    print("ï¿½ï¿½ï¿½ï¿½È¯ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½Ï´ï¿½. ï¿½ï¿½ï¿½Î¼ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¨ï¿½Ï´ï¿½.")
+                    print("°¡»óÈ¯°æÀÌ ¿¹±âÄ¡ ¾ÊÀº ¿À·ù·Î ÀÎÇØ Á¾·áµÆ½À´Ï´Ù. ÇÁ·Î¼¼½º¸¦ ¸¶Ä¨´Ï´Ù.")
                     terminate_console_by_title("AiEnviormentTerminal")
                     break;
         except FileNotFoundError:

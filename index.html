@@ -117,7 +117,10 @@
     					var mute_video = document.getElementById('mute_video').checked;
 
     					// URL을 생성합니다.
-   					 var url = "http://127.0.0.1:5000/join?";
+              var url = "https://127.0.0.1:5000/join?";
+              //var url = "https://172.30.1.59:5000/join";
+   					  //var url = "https://172.30.1.59:5000/join?";
+               //https://172.30.1.59:5000/join?room_id=1123&display_name=12&mute_audio=0&mute_video=0
    					url += "room_id=" + encodeURIComponent(room_id);
     					url += "&display_name=" + encodeURIComponent(display_name);
     					url += "&mute_audio=" + (mute_audio ? "1" : "0");

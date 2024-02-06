@@ -3,7 +3,8 @@ var _peer_list = {};
 
 // socketio 
 var protocol = window.location.protocol;
-var socket = io('http://127.0.0.1:5000');
+var socket = io('https://127.0.0.1:5000');
+//var socket = io('http://127.0.0.1:5000');
 
 document.addEventListener("DOMContentLoaded", (event)=>{
     startCamera();
@@ -109,6 +110,108 @@ var PC_CONFIG = {
 function log_error(e){console.log("[ERROR] ", e);}
 function sendViaServer(data){socket.emit("data", data);}
 
+socket.on("chatrespond",(data)=>{ 
+    var index = 0;
+    let name  = data["name"]
+    let message =  data["message"]
+    var messageList = document.getElementById('user-chat-messages'); // 요소를 가져옵니다.
+    var newMessage = document.createElement('li'); // 새로운 리스트 아이템을 생성합니다.
+    var textNode = document.createTextNode(name + ": " ); // 텍스트 노드를 생성합니다.
+    newMessage.appendChild(textNode); // 리스트 아이템에 텍스트 노드를 추가합니다.
+    messageList.appendChild(newMessage); // 요소에 리스트 아이템을 추가합니다.
+    var interval = setInterval(function() {
+        // 텍스트의 모든 글자를 출력했는지 확인
+        if (index < message.length) {
+            // 다음 글자를 텍스트 요소에 추가
+            messageList.lastChild.textContent += message[index];
+            // 다음 글자로 이동
+            index++;
+        } else {
+            // 모든 글자를 출력한 경우 interval을 멈춤
+            clearInterval(interval);
+        }
+    }, 25); // 0.1초(100밀리초)마다 실행
+});
+
+   
+socket.on("tutor",()=>{
+    var event = new Event("tutor");
+    document.dispatchEvent(event);
+});
+
+socket.on("GetAnswer",(data)=>{
+    var index= 0;
+    console.log(data);
+    //인터벌 함수 중지 
+    clearInterval(ellipsisInterval);
+    var messageList = document.getElementById('ai-chat-messages'); // 요소를 가져옵니다.
+    // 인터벌 메세지 지우기 
+    // messageList.removeChild(messageList.lastChild);
+
+    var newMessage = document.createElement('li'); // 새로운 리스트 아이템을 생성합니다.
+    var textNode = document.createTextNode("흙PT : "); // 텍스트 노드를 생성합니다.
+    newMessage.appendChild(textNode); // 리스트 아이템에 텍스트 노드를 추가합니다.
+    messageList.appendChild(newMessage); // 요소에 리스트 아이템을 추가합니다.
+    var interval = setInterval(function() {
+        // 텍스트의 모든 글자를 출력했는지 확인
+        if (index < data.length) {
+            // 다음 글자를 텍스트 요소에 추가
+            messageList.lastChild.textContent += data[index];
+            // 다음 글자로 이동
+            index++;
+        } else {
+            // 모든 글자를 출력한 경우 interval을 멈춤
+            clearInterval(interval);
+        }
+    }, 20); // 0.1초(100밀리초)마다 실행
+});
+socket.on("GetAnswer_Add",(data)=>{
+    messageList = document.getElementById('ai-chat-messages')
+    clearInterval(ellipsisInterval);
+    messageList.removeChild(messageList.lastChild);
+    var blob = new Blob([data], { type: 'image/png' }); // 전달된 바이트 데이터를 Blob으로 변환
+    var imageUrl = URL.createObjectURL(blob); // Blob을 URL로 변환하여 이미지로 사용
+
+    // 이미지를 보여줄 ul 요소를 선택합니다.
+    var ulElement = document.getElementById('ai-chat-messages');
+
+    // 이미지를 보여줄 li 요소를 생성하고 이미지를 추가합니다.
+    var liElement = document.createElement('li');
+    var imgElement   = document.createElement('img');
+    imgElement.src = imageUrl;
+    liElement.appendChild(imgElement);
+    ulElement.appendChild(liElement);
+});
+socket.on("FineTuneStart",(data)=>{
+    is_started =  data
+    done_message = ""
+    if (is_started  == true){
+        done_message = "성공"
+    }
+    else {
+        done_message = "실패"
+    }
+    var messageList = document.getElementById('ai-chat-messages'); // 요소를 가져옵니다.
+    var newMessage = document.createElement('li'); // 새로운 리스트 아이템을 생성합니다.
+    var textNode = document.createTextNode("해당강좌의 파인튜닝 시작이 "+done_message+" 하였습니다"); // 텍스트 노드를 생성합니다.
+    newMessage.appendChild(textNode); // 리스트 아이템에 텍스트 노드를 추가합니다.
+    messageList.appendChild(newMessage); // 요소에 리스트 아이템을 추가합니다.
+});// data true or fasle 
+socket.on("FineTuneEnd",(data)=>{
+    is_started =  data
+    done_message = ""
+    if (is_started  == true){
+        done_message = "성공"
+    }
+    else {
+        done_message = "실패"
+    }
+    var messageList = document.getElementById('ai-chat-messages'); // 요소를 가져옵니다.
+    var newMessage = document.createElement('li'); // 새로운 리스트 아이템을 생성합니다.
+    var textNode = document.createTextNode("해당강좌의 파인튜닝 완료가"+done_message+" 입니다"); // 텍스트 노드를 생성합니다.
+    newMessage.appendChild(textNode); // 리스트 아이템에 텍스트 노드를 추가합니다.
+    messageList.appendChild(newMessage); // 요소에 리스트 아이템을 추가합니다.
+});// data true or fasle 
 socket.on("data", (msg)=>{
     switch(msg["type"])
     {

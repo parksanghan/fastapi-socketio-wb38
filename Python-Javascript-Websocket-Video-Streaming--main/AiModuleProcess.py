@@ -2,12 +2,22 @@
 import os, threading, time, subprocess
 import socket
 import asyncio
+import aiofiles
 
 import GlobalReference
 from _240102_OpenAI_API.AiProcessSources.Addon.CustomConsolePrinter import printError, printNor, printProcess, printSucceed, printWarning
 from _240102_OpenAI_API.AiProcessSources.Addon.ServerAndClient import Server 
 import socketio
 subsio= None
+async def send_file(filepath, target_sid):
+    if os.path.exists(filepath):  # 파일이 존재하는지 확인
+        async with aiofiles.open(filepath, 'rb') as file:
+            target_file = await file.read()
+            await subsio.emit('GetAnswer_Add',
+            data=target_file, to=target_sid)
+            print("GetAnswer_Add 이벤트 파일 전송 완료")
+    else:
+        printError(f"파일이 존재하지 않습니다: {filepath}")
 class AiModuleProcess():
     def __init__(self,sio : socketio.AsyncServer) :
     
@@ -117,14 +127,28 @@ class AiModuleProcess():
                     else:
                         printError(f"'{path}' TXT파일을 '{lecture}'과목에 업로드하는데 실패했습니다.")
                 
+                case "SendDataPpt": 
+                    ssp = sp[1].split(p2)
+                    isSucceed = True if ssp[0] == str(True) else False
+                    lecture = ssp[1]
+                    path = ssp[2]
+                    
+                    if isSucceed :
+                        printSucceed(f"성공적으로 '{path}' PPT파일을 '{lecture}'과목을 업로드했습니다.")
+                    else:
+                        printError(f"'{path}' PPT파일을 '{lecture}'과목에 업로드하는데 실패했습니다.")
+                
                 case "FineTuneCreate":
                     ssp = sp[1].split(p2)
                     isSucceed = True if ssp[0] == str(True) else False
                     lecture = ssp[1]
                     
                     if isSucceed :
+                        asyncio.run(subsio.emit("FineTuneStart",data=True,to=lecture))
                         printSucceed(f"'{lecture}'과목의 파인튜닝이 시작됐습니다.")
+                        
                     else:
+                        asyncio.run(subsio.emit("FineTuneStart",data=False,to=lecture))
                         printSucceed(f"'{lecture}'과목의 파인튜닝이 정상적으로 시작되지 않았습니다. AI 프로세스를 확인해주십시오.")
                 
                 case "FineTuneEnd" : 
@@ -133,8 +157,10 @@ class AiModuleProcess():
                     lecture = ssp[1]
                     
                     if isSucceed :
+                        asyncio.run(subsio.emit("FineTuneEnd",data=True,to=lecture))
                         printSucceed(f"성공적으로 '{lecture}'과목의 파인튜닝이 끝났습니다.")
                     else:
+                        asyncio.run(subsio.emit("FineTuneEnd",data=False,to=lecture))
                         printSucceed(f"'{lecture}'과목의 파인튜닝이 비정상적인 방법으로 종료됐습니다. AI 프로세스를 확인해주십시오.")
                 
                 case "GetModel":
@@ -160,10 +186,23 @@ class AiModuleProcess():
                     sid = ssp[0]
                     lecture = ssp[1]
                     answer = ssp[2]
-                
+                    is_filepath_exist=ssp[3]
+                    filepath =  None
+                    if is_filepath_exist == "None":
+                       
+                        filepath = None  
+                        # ppt 파일 슬라이드 경로가없다 # none
+                    else:
+                        filepath  = is_filepath_exist
+                        # 외에는 해당 변수가 경로
+
+                    if filepath is not None:
+                        asyncio.run(send_file(filepath=filepath,target_sid=sid))
+
                     printSucceed(f"['{sid}' 사용자의 '{lecture}' 응답] : {answer}")
                     asyncio.run(subsio.emit('GetAnswer', data= answer,to= sid))
                     print("emit  성공")
+                  
                 case _:
                     if flag == "" : return;
             
@@ -173,6 +212,7 @@ class AiModuleProcess():
         except Exception as ex:
             printError(f"소켓 통신 중 예외가 발생했습니다! {ex}\n{ex.with_stacktrace().format_exc()}")
             
+   
 
     # 프로세스 로드 함수
     def __LoadAiProcess__(self) :
@@ -364,6 +404,14 @@ class AiModuleProcess():
         
         server.Send(f"SendDataWav{p1}{lecture}{p2}{path}")
     
+    def DoSendDataPpt(self, lecture : str, path : str) :
+        # 기타 변수들을 짧게 처리
+        p1 = self.p1
+        p2 = self.p2
+        server = self.server;
+        
+        server.Send(f"SendDataPpt{p1}{lecture}{p2}{path}")
+
     def DoFineTuneCreate(self, lecture : str) :
         # 기타 변수들을 짧게 처리
         p1 = self.p1

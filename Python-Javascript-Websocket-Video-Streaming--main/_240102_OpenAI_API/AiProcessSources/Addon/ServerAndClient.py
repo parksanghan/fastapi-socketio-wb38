@@ -1,5 +1,5 @@
 
- 
+# -*- coding: cp949 -*-
 import socket
 import sys, os, signal
 import threading
@@ -13,24 +13,24 @@ parseMarker : str = "0@$-"
 class Server ():
     # callback => (Socket s, string str) => {}
     def __init__(self, ip, port, callback) :
-        # ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        # ¼­¹ö ¼³Á¤
         self.host = ip
         self.port = port
-        # ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        # ¼ÒÄÏ »ý¼º
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½
+        #Å¬¶óÀÌ¾ðÆ® ÀúÀå¼Ò
         self.readThreads = []
         self.clients = []
         self.callback = callback
         
     def Deploy(self) :
-        # ï¿½Ö¼Ò¿ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½Îµï¿½
+        # ÁÖ¼Ò¿Í Æ÷Æ®¸¦ ¼ÒÄÏ¿¡ ¹ÙÀÎµù
         self.server_socket.bind((self.host, self.port))
 
-        # ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+        # ¿¬°á ´ë±â
         self.server_socket.listen()
 
-        print(f"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ {self.host}:{self.port}ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ô´Ï´ï¿½.")
+        print(f"¼­¹ö°¡ {self.host}:{self.port}¿¡¼­ ´ë±â ÁßÀÔ´Ï´Ù.")
         
         self.acceptThread = threading.Thread(target = self.AcceptThread)
         self.acceptThread.start()
@@ -41,13 +41,13 @@ class Server ():
     
     def AcceptThread(self) :
         
-        print("ï¿½ï¿½ï¿½ï¿½ - AcceptThread ï¿½ï¿½ï¿½ï¿½")
+        print("¼­¹ö - AcceptThread ½ÇÇà")
         while True :
-            # Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+            # Å¬¶óÀÌ¾ðÆ® ¿¬°á ¼ö¶ô
 
-            print("ï¿½ï¿½ï¿½ï¿½ - ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½...")
+            print("¼­¹ö - ¿¬°á ´ë±âÁß...")
             client_socket, client_address = self.server_socket.accept()
-            print(f"{client_address}ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.")
+            print(f"{client_address}°¡ ¿¬°áµÇ¾ú½À´Ï´Ù.")
             
             self.clients.append(client_socket)
             
@@ -58,16 +58,16 @@ class Server ():
     def ReadThread(self, client_socket : socket) :
         while True :
             try :
-                # Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ®ï¿½Îºï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Þ±ï¿½
+                # Å¬¶óÀÌ¾ðÆ®·ÎºÎÅÍ µ¥ÀÌÅÍ ¹Þ±â
                 data = client_socket.recv(1024 * 16).decode('utf-8')
-                #print(f"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: {data}")
+                #print(f"¼­¹ö°¡ ¼ö½ÅÇÑ µ¥ÀÌÅÍ: {data}")
                 spDatas = data.split(parseMarker)
                 for spData in spDatas :
                     if(onDebug): print("[RECV] : " + spData)
                     self.callback(client_socket, spData)
             except ConnectionResetError as ex :
-                # ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½.
-                # ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+                # ¿¬°áÀÌ ºñÁ¤»óÀûÀ¸·Î Á¾·áµÈ °æ¿ìÀÇ Ã³¸®.
+                # ¼­¹ö¿¡¼­ ÇöÀç ¼ÒÄÏ¿¡ ´ëÇÑ Á¤º¸ ¸»¼Ò
 
                 if threading.current_thread() in self.readThreads:
                     self.readThreads.remove(threading.current_thread())
@@ -77,11 +77,11 @@ class Server ():
                     
                 client_socket.close()
                 
-                break; # ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+                break; # ½º·¹µå Á¾·á
     
             
     def __del__ (self) :
-        # ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        # ¿¬°á Á¾·á
         self.client_socket.close()
         self.server_socket.close()
 
@@ -107,20 +107,20 @@ def ExitCode() :
 class Client ():
     # callback => (string str) => {}
     def __init__(self, ip, port, callback) :
-        # ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        # ¼­¹ö ¼³Á¤
         self.host = ip
         self.port = port
-        # ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        # ¼ÒÄÏ »ý¼º
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
+        #¼­¹ö ÀúÀå¼Ò
         self.callback = callback
         
     def Connect(self) :
         
         try :
-            # ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+            # ¼­¹ö¿¡ ¿¬°á
             self.client_socket.connect((self.host, self.port))
-            print(f"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.")
+            print(f"¼­¹ö¿¡ ¿¬°áµÇ¾ú½À´Ï´Ù.")
 
             self.readThread = threading.Thread(target = self.ReadThread)
             self.readThread.start()
@@ -134,9 +134,9 @@ class Client ():
     def ReadThread(self) :
         while True :
             try :
-                # Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ®ï¿½Îºï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Þ±ï¿½
+                # Å¬¶óÀÌ¾ðÆ®·ÎºÎÅÍ µ¥ÀÌÅÍ ¹Þ±â
                 data = self.client_socket.recv(1024 * 16).decode('utf-8')
-                # print(f"Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: {data}")
+                # print(f"Å¬¶óÀÌ¾ðÆ®°¡ ¼ö½ÅÇÑ µ¥ÀÌÅÍ: {data}")
                 spDatas = data.split(parseMarker)
                 for spData in spDatas :
                     if(onDebug): print("[RECV] : " + spData)
@@ -146,7 +146,7 @@ class Client ():
 
             
     def __del__ (self) :
-        # ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+        # ¿¬°á Á¾·á
         self.client_socket.close()
 
 

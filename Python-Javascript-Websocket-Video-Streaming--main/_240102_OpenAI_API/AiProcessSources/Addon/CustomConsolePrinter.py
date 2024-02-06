@@ -1,4 +1,4 @@
- 
+# -*- coding: cp949 -*-
 
 def printSucceed(msg : str) :
     print(f"[\033[92mSUCCEED\033[0m] {msg}")

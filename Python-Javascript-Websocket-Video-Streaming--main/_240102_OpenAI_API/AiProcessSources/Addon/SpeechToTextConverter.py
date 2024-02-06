@@ -1,4 +1,4 @@
- 
+# -*- coding: cp949 -*-
 import os
 from google.cloud import speech, storage
 from datetime import datetime, timedelta
@@ -11,7 +11,7 @@ class SpeechToTextConverter() :
         self.sttClient = speech.SpeechClient()
         self.bucketName = "kamos_speech_to_text"
         
-        # ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ä¸®ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ® ï¿½ï¿½Ã¼ ï¿½ï¿½ï¿½ï¿½
+        # ±¸±Û ½ºÅä¸®Áö Å¬¶óÀÌ¾ðÆ® °´Ã¼ »ý¼º
         self.stoClient = storage.Client()
         self.sttBucket = self.stoClient.bucket(self.bucketName)
         
@@ -20,7 +20,7 @@ class SpeechToTextConverter() :
 
     def upload_file(self, source_file) :
         
-        printProcess("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Îµï¿½ ï¿½ï¿½ï¿½Ô´Ï´ï¿½.")
+        printProcess("À½¼º Á¤º¸¸¦ ¾÷·Îµå ÁßÀÔ´Ï´Ù.")
         
         current_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S');
         file_extension = os.path.splitext(source_file)[1]
@@ -28,13 +28,13 @@ class SpeechToTextConverter() :
 
         new_blob = self.sttBucket.blob(current_time_str + file_extension)
 
-        new_blob.upload_from_filename(source_file)
+        new_blob.upload_from_filename(source_file, num_retries=30, timeout=3600.)
         
         bucket_name = "kamos_speech_to_text"
         
     
         gsutil_url = f"gs://{bucket_name}/{current_time_str + file_extension}"
-        printSucceed(f"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Îµï¿½ï¿½ß½ï¿½ï¿½Ï´ï¿½. gsutil : {gsutil_url}")
+        printSucceed(f"¼º°øÀûÀ¸·Î À½¼º Á¤º¸¸¦ ¾÷·ÎµåÇß½À´Ï´Ù. gsutil : {gsutil_url}")
         
         return gsutil_url
         
@@ -45,15 +45,16 @@ class SpeechToTextConverter() :
         audio = speech.RecognitionAudio(uri=gcs_uri)
         config = speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.MP3,
-            sample_rate_hertz= 48000,
+            sample_rate_hertz= 44000,
+            audio_channel_count = 1,
             language_code="ko-KR", 
         )
 
         operation = sttClient.long_running_recognize(config=config, audio=audio)
 
-        printProcess("SpeechToText ï¿½Û¾ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½...")
-        response = operation.result(timeout=3600)
-
+        printProcess("SpeechToText ÀÛ¾÷À» ½ÃÀÛÇÕ´Ï´Ù...")
+        response = operation.result(timeout=36000)
+        
         transcript_builder = []
         # Each result is for a consecutive portion of the audio. Iterate through
         # them to get the transcripts for the entire audio file.
@@ -67,6 +68,6 @@ class SpeechToTextConverter() :
             transcript += result.alternatives[0].transcript + "\n"
             
     
-        printSucceed("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ SpeechToTextï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.")
+        printSucceed("¼º°øÀûÀ¸·Î SpeechToText°úÁ¤ÀÌ ¸¶¹«¸®µÇ¾ú½À´Ï´Ù.")
     
         return transcript

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./css/index2/style.css">
+    <title>CHAIR | Home</title>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>CHAIR</h1>
+        <p>University Lecture Program</p>
+        <div id="controls">
+            <label for="room_id"><span>Room ID:</span>
+                <input type="text" id="room_id" />
+            </label>
+            <label for="display_name"><span>Display Name:</span>
+                <input type="text" id="display_name" />
+            </label>
+            <label for="mute_audio"><span>Mute Audio:</span>
+                <input type="checkbox" id="mute_audio" />
+            </label>
+            <label for="mute_video"><span>Mute Video:</span>
+                <input type="checkbox" id="mute_video" />
+            </label>
+        </div>
+        <button onclick="redirectToJoin()">Getting Started</button>
+    </div>
+
+    <div class="blank"></div>
+
+    <div class="container second">
+        <div class="card">
+            <div class="info">
+                <img src="assets/courses.jpg">
+                <h3>AI</h3>
+                <p>AI Information</p>
+            </div>
+            <a href="#">Learn More</a>
+        </div>
+        <div class="card">
+            <div class="info">
+                <img src="assets/team.jpg">
+                <h3>Stream</h3>
+                <p>Stream Information</p>
+            </div>
+            <a href="#">Learn More</a>
+        </div>
+        <div class="card">
+            <div class="info">
+                <img src="assets/contact.jpg">
+                <h3>Upload</h3>
+                <p>Upload Information</p>
+            </div>
+            <a href="#">Learn More</a>
+        </div>
+    </div>
+
+    <div class="blank-2">
+        <div class="footer">
+            <div class="column">
+                <h3>Services</h3>
+                <ul>
+                    <li><a href="#">Email</a></li>
+                    <li><a href="#">Campaigns</a></li>
+                    <li><a href="#">Branding</a></li>
+                </ul>
+            </div>
+            <div class="column">
+                <h3>About</h3>
+                <ul>
+                    <li><a href="#">Our Story</a></li>
+                    <li><a href="#">Benifits</a></li>
+                    <li><a href="#">Careers</a></li>
+                </ul>
+            </div>
+            <div class="column">
+                <h3>Legal</h3>
+                <ul>
+                    <li><a href="#">Terns & Conditions</a></li>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terns of Use</a></li>
+                </ul>
+            </div>
+            <div class="column">
+                <h3>Overview</h3>
+                <ul>
+                    <li><a href="#">Pricing</a></li>
+                    <li><a href="#">Contact Us</a></li>
+                    <li><a href="#">Bloggers</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/indexscript.js"></script>
+    <script type="text/javascript">
+        function redirectToJoin() {
+            // 입력된 값을 가져옵니다.
+            var room_id = document.getElementById("room_id").value;
+            var display_name = document.getElementById("display_name").value;
+            var mute_audio = document.getElementById("mute_audio").checked;
+            var mute_video = document.getElementById("mute_video").checked;
+
+            // URL을 생성합니다.
+            var url = "https://127.0.0.1:5000/join?";
+            url += "room_id=" + encodeURIComponent(room_id);
+            url += "&display_name=" + encodeURIComponent(display_name);
+            url += "&mute_audio=" + (mute_audio ? "1" : "0");
+            url += "&mute_video=" + (mute_video ? "1" : "0");
+
+            // 생성된 URL로 이동합니다.
+            window.location.href = url;
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>마이크 테스트</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.2/socket.io.js"></script>
+</head>
+
+<body>
+    <input type=checkbox id="chk-hear-mic"><label for="chk-hear-mic">마이크 소리 듣기</label>
+    <button id="record">녹음</button>
+    <button id="stop">정지</button>
+    <div id="sound-clips"></div>
+    <script>
+        
+        var socket = io('https://10.101.66.99:5000');
+        var is_turtor = false
+        const record = document.getElementById("record")
+        const stop = document.getElementById("stop")
+        const soundClips = document.getElementById("sound-clips")
+        const chkHearMic = document.getElementById("chk-hear-mic")
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)() // 오디오 컨텍스트 정의
+
+        const analyser = audioCtx.createAnalyser()
+        //        const distortion = audioCtx.createWaveShaper()
+        //        const gainNode = audioCtx.createGain()
+        //        const biquadFilter = audioCtx.createBiquadFilter()
+
+        function makeSound(stream) {
+            const source = audioCtx.createMediaStreamSource(stream)
+            socket.connect()
+            source.connect(analyser)
+            //            analyser.connect(distortion)
+            //            distortion.connect(biquadFilter)
+            //            biquadFilter.connect(gainNode)
+            //            gainNode.connect(audioCtx.destination) // connecting the different audio graph nodes together
+            analyser.connect(audioCtx.destination)
+
+        }
+
+        if (navigator.mediaDevices) {
+            console.log('getUserMedia supported.')
+
+            const constraints = {
+                audio: true
+            }
+            let chunks = []
+
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+
+                    const mediaRecorder = new MediaRecorder(stream)
+
+                    chkHearMic.onchange = e => {
+                        if (e.target.checked == true) {
+                            audioCtx.resume()
+                            makeSound(stream)
+                        } else {
+                            audioCtx.suspend()
+                        }
+                    }
+
+                    record.onclick = () => {
+                        mediaRecorder.start(1000)
+                        console.log(mediaRecorder.state)
+                        console.log("recorder started")
+                        record.style.background = "red"
+                        record.style.color = "black"
+                    }
+
+                    stop.onclick = () => {
+                        mediaRecorder.stop()
+                        console.log(mediaRecorder.state)
+                        console.log("recorder stopped")
+                        record.style.background = ""
+                        record.style.color = ""
+                    }
+
+                    mediaRecorder.onstop = e => {
+                        console.log("onstop happen!")
+                            
+                        if (chunks.length >= 9) {
+                            console.log("data available after MediaRecorder.stop() called.")
+                            const bb = new Blob(chunks, { 'type': 'audio/wav' })
+                            socket.emit('voice', bb)
+                        }
+                        // const clipName = prompt("오디오 파일 제목을 입력하세요.", new Date())
+
+                        // const clipContainer = document.createElement('article')
+                        // const clipLabel = document.createElement('p')
+                        // const audio = document.createElement('audio')
+                        // const deleteButton = document.createElement('button')
+
+                        // clipContainer.classList.add('clip')
+                        // audio.setAttribute('controls', '')
+                        // deleteButton.innerHTML = "삭제"
+                        // clipLabel.innerHTML = clipName
+
+                        // clipContainer.appendChild(audio)
+                        // clipContainer.appendChild(clipLabel)
+                        // clipContainer.appendChild(deleteButton)
+                        // soundClips.appendChild(clipContainer)
+
+                        // audio.controls = true
+                        // const blob = new Blob(chunks, {
+                        //     'type': 'audio/ogg codecs=opus'
+                        // })
+
+                        chunks = []
+                        // const audioURL = URL.createObjectURL(blob)
+                        // audio.src = audioURL
+                        // console.log("recorder stopped")
+
+                        // deleteButton.onclick = e => {
+                        //     evtTgt = e.target
+                        //     evtTgt  .parentNode.parentNode.removeChild(evtTgt.parentNode)
+                        // }
+                    }
+
+                    mediaRecorder.ondataavailable = function (e) {
+                        chunks.push(e.data)
+                        console.log("add " + String(chunks.length))
+
+                        if (chunks.length >= 10) {
+                            mediaRecorder.stop()
+                            // const bloddb = new Blob(chunks, { 'type' : 'audio/wav' })
+                            // socket.emit('voice', bloddb)
+
+                            //chunks = []
+                            mediaRecorder.start(1000)
+                            //console.log("end " + String(chunks.length))
+                        }
+
+                        mediaRecorder.sendData = function (buffer) {
+                            const bloddb = new Blob(buffer, { 'type': 'audio/wav' })
+                            socket.emit('voice', bloddb)
+
+                            console.log("end " + String(chunks.length))
+                        }
+                    };
+                })
+                .catch(err => {
+                    console.log('The following error occurred: ' + err)
+                })
+        }
+    </script>
+</body>
+
+</html>
